@@ -1141,6 +1141,9 @@ async function loadAndBuild(){
   }
  }
 
+ // --- PATCH: define bind() to avoid runtime error
+ function bind(){ /* no-op: handlers are attached inline */ }
+
  try{ bind(); }catch(e){ dbg("❌ Bind error: "+(e.message||String(e))); }
  window.addEventListener("load", function(){ try{ bind(); }catch(e){} });
 })();
