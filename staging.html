@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lenehans Purchasing Dashboard · V4.2 · LOST-SALES-RISK</title>
+  <style>
+    :root{--bg:#f8fafc;--panel:#ffffff;--line:#e2e8f0;--text:#0f172a;--muted:#64748b;--accent:#2563eb;--good:#166534;--warn:#b45309;--bad:#b91c1c;--chip:#eff6ff}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,Segoe UI,Arial,sans-serif}
+    header{position:sticky;top:0;z-index:20;background:#0f172a;color:#fff;padding:14px 18px;border-bottom:1px solid #1e293b}
+    header .title{font-size:18px;font-weight:800} header .sub{font-size:12px;color:#cbd5e1;margin-top:2px}
+    .wrap{max-width:1720px;margin:0 auto;padding:16px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+    .card h3{margin:0 0 10px 0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    .controls,.load-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:14px 0}
+    label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--muted)}
+    input,select,button{font:inherit}
+    input[type="text"],input[type="number"],select{background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;min-height:42px;color:var(--text)}
+    button{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+    button.secondary{background:#fff;color:var(--text);border:1px solid #cbd5e1}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0}
+    .metric{font-size:28px;font-weight:800}.small{font-size:12px;color:var(--muted)}.muted{color:var(--muted)}
+    .toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:10px 0 8px}
+    .active-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:700;background:var(--chip);color:var(--accent)}
+    .table-panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .table-wrap{overflow:auto;max-height:72vh}
+    table{border-collapse:collapse;width:100%}
+    thead th{position:sticky;top:0;background:#f8fafc;border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;font-size:12px;color:#475569;z-index:1}
+    tbody td{border-bottom:1px solid #eef2f7;padding:10px 8px;vertical-align:top}
+    tbody tr:hover{background:#fafcff}
+    .num{text-align:right;font-variant-numeric:tabular-nums}
+    .supplier-link{color:var(--accent);font-weight:700;text-decoration:none}.supplier-link:hover{text-decoration:underline}
+    .reason{max-width:540px;color:#334155;line-height:1.45}
+    .bad{color:var(--bad);font-weight:700}.warn-txt{color:var(--warn);font-weight:700}.good-txt{color:var(--good);font-weight:700}
+    .chip-row{display:flex;gap:6px;flex-wrap:wrap}.chip{display:inline-flex;align-items:center;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
+    .chip.season{background:#ecfeff;color:#155e75}.chip.rule{background:#eef2ff;color:#3730a3}.chip.category{background:#fef9c3;color:#854d0e}.chip.crit{background:#fee2e2;color:#991b1b}.chip.low{background:#ffedd5;color:#9a3412}.chip.buy{background:#dbeafe;color:#1d4ed8}
+    .footer{margin-top:10px;font-size:12px;color:var(--muted)}
+    @media (max-width:1100px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="title">Lenehans Purchasing Dashboard · V4.2 · LOST-SALES-RISK</div>
+  <div class="sub">QueryData_master only · Buyer-focused filters + supplier priority ranking · visible exclude healthy control</div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h3>Load QueryData_master</h3>
+    <div class="load-row">
+      <label>CSV URL
+        <input id="csvUrl" type="text" value="https://docs.google.com/spreadsheets/d/1LnMn_BU0DIHSOihsTVS0kl0bWITWlxayvdgfMtYoKyQ/export?format=csv&gid=734583899" style="min-width:560px">
+      </label>
+      <button id="loadUrlBtn">Load from URL</button>
+      <button id="autoLoadBtn" class="secondary">Auto-load QueryData</button>
+      <button id="testUrlBtn" class="secondary">Test URL</button>
+      <label>or CSV file
+        <input id="csvFile" type="file" accept=".csv,text/csv">
+      </label>
+      <button id="sampleBtn" class="secondary">Load sample</button>
+    </div>
+    <div class="small">Supplier-first view. Click a supplier to open SKU detail. Seasonal rules adjust demand before target stock is calculated.</div>
+    <div id="loadStatus" class="footer">No data loaded.</div>
+    <div id="loadMeta" class="footer"></div>
+  </div>
+
+  <div class="controls">
+    <label>Search supplier / SKU / title
+      <input id="searchBox" type="text" placeholder="Search supplier, SKU, title">
+    </label>
+    <label>Demand mode
+      <select id="demandMode">
+        <option value="30D" selected>30D</option>
+        <option value="7D">7D</option>
+        <option value="180D">180D</option>
+      </select>
+    </label>
+    <label>Lead time days
+      <input id="leadDays" type="number" min="0" step="1" value="2">
+    </label>
+    <label>Base cover days
+      <input id="baseCoverDays" type="number" min="1" step="1" value="56">
+    </label>
+    <label>Fallback
+      <select id="fallbackMode">
+        <option value="on" selected>Use 180D / 90D if selected demand is 0 and stock is 0</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <label>Show
+      <select id="showFilter">
+        <option value="all" selected>All</option>
+        <option value="buy">Buy > 0</option>
+        <option value="critical">Critical / out of stock</option>
+      </select>
+    </label>
+          <label>Exclude healthy stock
+        <select id="excludeHealthyFilter">
+          <option value="no" selected>No</option>
+          <option value="yes">Yes</option>
+        </select>
+      </label>
+      <button id="buyRiskModeBtn" class="secondary">⚠ View buy risks</button>
+      <button id="clearRiskFiltersBtn" class="secondary">Clear risk filters</button>
+      <button id="exportBtn" class="secondary">Export current view CSV</button>
+  </div>
+
+  <div class="metrics">
+    <div class="card"><h3>Suppliers</h3><div id="mSuppliers" class="metric">0</div></div>
+    <div class="card"><h3>Visible rows</h3><div id="mRows" class="metric">0</div></div>
+    <div class="card"><h3>Total suggested buy</h3><div id="mBuy" class="metric">0</div></div>
+    <div class="card"><h3>Critical SKUs</h3><div id="mCritical" class="metric">0</div></div>
+    <div class="card"><h3>Demand mode</h3><div id="mMode" class="metric">30D</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="active-bar">
+      <span class="pill" id="modeBadge">Mode: 30D</span>
+      <span class="pill" id="monthBadge">Month</span>
+      <span class="muted" id="resultCount">0 suppliers</span>
+      <button id="backBtn" class="secondary" style="display:none">Back to suppliers</button>
+      
+      <span class="muted" id="activeSupplierLabel"></span>
+    </div>
+    <div class="small">Stock basis = NetStock_Arklow only · Capel demand = visibility only · use Exclude Healthy or Show buy risks only to focus on what needs ordering</div>
+  </div>
+
+  <div class="table-panel">
+    <div class="table-wrap">
+      <table id="supplierTable">
+        <thead>
+          <tr>
+            <th>Supplier</th><th>Risk</th><th class="num">Priority</th><th class="num">Critical</th><th class="num">Low</th><th class="num">Buy SKUs</th><th class="num">Buy Units</th><th class="num">Seasonal</th><th class="num">SKUs</th><th class="num">Top SKU Buy</th><th>Top SKU</th>
+          </tr>
+        </thead>
+        <tbody id="supplierTbody"></tbody>
+      </table>
+
+      <table id="detailTable" style="display:none">
+        <thead>
+          <tr>
+            <th>SKU</th><th>Item</th><th>ABC</th><th>Seasonal signal</th><th>Lost sales risk</th><th>Category</th><th>Season</th><th class="num">Multiplier</th><th class="num">Net Stock</th><th class="num">Demand Qty</th><th class="num">Adj Daily</th><th class="num">Days of Cover</th><th>Cover Status</th><th class="num">Cover Target</th><th class="num">Target</th><th class="num">Max Buy</th><th class="num">Buy</th><th>Status</th><th>Reason</th>
+          </tr>
+        </thead>
+        <tbody id="detailTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">Buyer logic: default 30D demand; stock basis = NetStock_Arklow; optional fallback only when selected demand is 0 and stock is 0, using 180D then 90D; if fallback is used and stock is 0, minimum buy of 1 is allowed; seasonal SKU rules adjust demand based on product type and month before target stock is calculated. Days of cover is shown using NetStock_Arklow divided by adjusted daily demand.</div>
+</div>
+
+<script>
+const state = { rawRows: [], computedRows: [], activeSupplier: '' };
+const DEFAULT_URL = 'https://docs.google.com/spreadsheets/d/1LnMn_BU0DIHSOihsTVS0kl0bWITWlxayvdgfMtYoKyQ/export?format=csv&gid=734583899';
+
+const CATEGORY_RULES = [
+  { id:'BIRD_CONTROL', label:'Bird Control', keywords:['bird','hawk','kite','pigeon','scarer','repeller','falcon'], seasonalProfile:'SPRING_BIRD', priority:100 },
+  { id:'SLUG_CONTROL', label:'Slug Control', keywords:['slug','snail','slug killer','slug pellets','snail killer'], seasonalProfile:'SPRING_AUTUMN_SLUG', priority:100 },
+  { id:'LAWN_SEED', label:'Lawn Seed', keywords:['lawn seed','grass seed','overseed','grass mix'], seasonalProfile:'SPRING_AUTUMN_LAWN', priority:95 },
+  { id:'FERTILISER', label:'Fertiliser', keywords:['fertiliser','fertilizer','plant food','lawn feed'], seasonalProfile:'SPRING_FEED', priority:92 },
+  { id:'WEED_CONTROL', label:'Weed Control', keywords:['weed killer','weedkiller','glyphosate','weed control'], seasonalProfile:'SPRING_SUMMER_WEED', priority:90 },
+  { id:'MOSS_CONTROL', label:'Moss Control', keywords:['moss killer','moss remover','moss control'], seasonalProfile:'SPRING_AUTUMN_MOSS', priority:85 },
+  { id:'GARDEN_TOOLS', label:'Garden Tools', keywords:['spade','fork','rake','hoe','secateurs','pruner','trowel'], seasonalProfile:'SPRING_GARDEN', priority:70 },
+  { id:'WATERING', label:'Watering', keywords:['hose','sprinkler','irrigation','watering can','spray gun'], seasonalProfile:'SUMMER_WATERING', priority:75 },
+  { id:'PATIO_CLEANING', label:'Patio Cleaning', keywords:['patio cleaner','deck cleaner','power washer','pressure washer','patio'], seasonalProfile:'SPRING_CLEANING', priority:80 },
+  { id:'BBQ', label:'BBQ', keywords:['bbq','barbecue','charcoal','grill'], seasonalProfile:'SUMMER_BBQ', priority:80 },
+  { id:'RODENT_CONTROL', label:'Rodent Control', keywords:['rat','mouse','rodent','bait station','rat trap','mouse trap'], seasonalProfile:'WINTER_RODENT', priority:95 },
+  { id:'INSECT_CONTROL', label:'Insect Control', keywords:['fly','wasp','insect killer','bug killer','fly paper','fly trap'], seasonalProfile:'SUMMER_INSECT', priority:80 },
+  { id:'WINTER_ICE', label:'De-Icer / Salt', keywords:['rock salt','deicer','de icer','de-icer','ice melt','snow shovel','ice scraper'], seasonalProfile:'WINTER_ICE', priority:100 },
+  { id:'CHRISTMAS', label:'Christmas', keywords:['christmas','xmas','tree lights','tree stand','decorations'], seasonalProfile:'CHRISTMAS', priority:100 },
+  { id:'TARP_STORM', label:'Storm Prep', keywords:['tarpaulin','tarp','rope','bungee'], seasonalProfile:'STORM_AUTUMN', priority:72 },
+  { id:'FIRE_HEAT', label:'Fire / Heat', keywords:['kindling','firelighter','fire lighters','logs','log basket'], seasonalProfile:'WINTER_FIRE', priority:78 }
+];
+const SEASONAL_PROFILES = {
+  NONE:{monthly:[1,1,1,1,1,1,1,1,1,1,1,1],note:'No seasonal uplift'},
+  SPRING_BIRD:{monthly:[1.0,1.5,2.2,2.4,2.3,2.0,1.2,1.0,1.0,1.0,1.0,1.0],note:'Spring bird-control demand'},
+  SPRING_AUTUMN_SLUG:{monthly:[1.0,1.2,1.8,2.3,2.4,2.0,1.2,1.1,1.8,1.7,1.1,1.0],note:'Spring/autumn slug demand'},
+  SPRING_AUTUMN_LAWN:{monthly:[1.0,1.7,2.4,2.3,1.9,1.2,1.0,1.2,1.8,1.3,1.0,1.0],note:'Spring/autumn lawn demand'},
+  SPRING_FEED:{monthly:[1.0,1.4,2.0,2.1,1.9,1.8,1.1,1.3,1.4,1.1,1.0,1.0],note:'Spring feed demand'},
+  SPRING_SUMMER_WEED:{monthly:[1.0,1.1,1.6,2.0,2.1,2.0,1.8,1.3,1.0,1.0,1.0,1.0],note:'Spring/summer weed demand'},
+  SPRING_AUTUMN_MOSS:{monthly:[1.0,1.5,1.8,1.7,1.2,1.0,1.0,1.1,1.6,1.5,1.0,1.0],note:'Spring/autumn moss demand'},
+  SPRING_GARDEN:{monthly:[1.0,1.4,1.7,1.9,1.8,1.3,1.1,1.0,1.0,1.0,1.0,1.0],note:'Spring garden demand'},
+  SUMMER_WATERING:{monthly:[1.0,1.0,1.1,1.3,1.8,2.0,2.0,1.8,1.2,1.0,1.0,1.0],note:'Summer watering demand'},
+  SPRING_CLEANING:{monthly:[1.0,1.1,1.5,1.8,1.9,1.7,1.1,1.0,1.0,1.0,1.0,1.0],note:'Spring cleaning demand'},
+  SUMMER_BBQ:{monthly:[1.0,1.0,1.1,1.6,2.0,2.1,2.0,1.8,1.1,1.0,1.0,1.0],note:'Summer BBQ demand'},
+  WINTER_RODENT:{monthly:[1.7,1.3,1.0,1.0,1.0,1.0,1.0,1.0,1.4,2.0,2.1,2.0],note:'Winter rodent demand'},
+  SUMMER_INSECT:{monthly:[1.0,1.0,1.0,1.1,1.5,2.0,2.1,2.0,1.2,1.0,1.0,1.0],note:'Summer insect demand'},
+  WINTER_ICE:{monthly:[2.1,1.9,1.0,1.0,1.0,1.0,1.0,1.0,1.2,2.0,2.5,2.4],note:'Winter de-icer demand'},
+  CHRISTMAS:{monthly:[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.3,1.7,2.5,2.0],note:'Christmas demand'},
+  STORM_AUTUMN:{monthly:[1.1,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.2,1.5,1.6,1.5],note:'Autumn/winter storm demand'},
+  WINTER_FIRE:{monthly:[1.6,1.2,1.0,1.0,1.0,1.0,1.0,1.0,1.3,1.6,1.8,1.8],note:'Cold season fire demand'}
+};
+
+function num(v){ if(v===null||v===undefined) return 0; const s=String(v).replace(/[€,]/g,'').trim(); const n=Number(s); return Number.isFinite(n)?n:0; }
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function ceilNonNeg(v){ return Math.max(0, Math.ceil(num(v))); }
+function fmtInt(v){ return Math.round(num(v)).toLocaleString('en-IE'); }
+function fmt1(v){ return num(v).toFixed(1); }
+function monthIndex(){ return new Date().getMonth(); }
+function monthLabel(){ return new Date().toLocaleString('en-IE', {month:'long'}); }
+function setStatus(msg,bad){ const el=document.getElementById('loadStatus'); if(el){ el.textContent=msg; el.style.color=bad?'var(--bad)':'var(--muted)'; } }
+function setLoadMeta(msg,bad){ const el=document.getElementById('loadMeta'); if(el){ el.textContent=msg||''; el.style.color=bad?'var(--bad)':'var(--muted)'; } }
+
+function parseCSV(text){
+  const rows=[]; let i=0, field='', row=[], inQ=false;
+  while(i<text.length){
+    const c=text[i], n=text[i+1];
+    if(inQ){
+      if(c === '"' && n === '"'){ field += '"'; i += 2; continue; }
+      if(c === '"'){ inQ = false; i++; continue; }
+      field += c; i++; continue;
+    }else{
+      if(c === '"'){ inQ = true; i++; continue; }
+      if(c === ','){ row.push(field); field=''; i++; continue; }
+      if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
+      if(c === '\r'){ i++; continue; }
+      field += c; i++; continue;
+    }
+  }
+  row.push(field); rows.push(row);
+  const clean=rows.filter(r=>r.some(x=>String(x).trim()!=='')); if(!clean.length) return [];
+  const headers=clean[0].map(h=>String(h).trim());
+  return clean.slice(1).map(r=>{ const o={}; headers.forEach((h,idx)=>o[h]=r[idx] ?? ''); return o; });
+}
+function normalizeGoogleCsvUrl(url){
+  try{
+    const u=new URL(url);
+    if(/docs\.google\.com$/i.test(u.hostname) && /spreadsheets/i.test(u.pathname)){
+      if(u.searchParams.get('output')==='csv') return u.toString();
+      if(u.searchParams.get('format')==='csv') return u.toString();
+      const m=u.pathname.match(/\/d\/([^/]+)/); const gid=u.searchParams.get('gid')||'0';
+      if(m) return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv&gid=${gid}`;
+    }
+  }catch(e){}
+  return url;
+}
+function detectMissingColumns(rows){
+  const needed=["SupplierName","SKU","ItemTitle","AvailableQty_CapelStreet","OnOrderQty_Arklow","NetStock_Arklow","QtySold_Online_CapelStreet_30d","QtySold_Online_Total_30d","QtySold_Online_Total_7d","QtySold_Online_Total_90d","QtySold_Online_Total_180d"];
+  if(!rows.length) return needed; const sample=rows[0];
+  return needed.filter(c => !(c in sample));
+}
+function normalizeRow(r){
+  return { SupplierName:r.SupplierName||'', SKU:r.SKU||'', ItemTitle:r.ItemTitle||'', AvailableQty_CapelStreet:num(r.AvailableQty_CapelStreet), AvailableQty_Arklow:num(r.AvailableQty_Arklow), OnOrderQty_Arklow:num(r.OnOrderQty_Arklow), NetStock_Arklow:num(r.NetStock_Arklow), QtySold_Online_CapelStreet_30d:num(r.QtySold_Online_CapelStreet_30d), QtySold_Online_Total_7d:num(r.QtySold_Online_Total_7d), QtySold_Online_Total_30d:num(r.QtySold_Online_Total_30d), QtySold_Online_Total_90d:num(r.QtySold_Online_Total_90d), QtySold_Online_Total_180d:num(r.QtySold_Online_Total_180d) };
+}
+function normalizeSkuName(name){ return String(name||'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9\s\-]/g,' ').replace(/\s+/g,' ').trim(); }
+function scoreRuleMatch(name, rule){ let score=0; for(const kw of rule.keywords){ if(name.includes(kw)) score += kw.split(' ').length * 10; } return score; }
+function classifySkuName(name){
+  const normalized=normalizeSkuName(name); let best=null;
+  for(const rule of CATEGORY_RULES){
+    const score=scoreRuleMatch(normalized, rule);
+    if(score<=0) continue;
+    if(!best || score>best.score || (score===best.score && rule.priority>best.rule.priority)) best={rule,score};
+  }
+  if(!best) return { categoryId:'GENERAL', categoryLabel:'General', seasonalProfile:'NONE', seasonalNote:'No seasonal uplift', score:0 };
+  return { categoryId:best.rule.id, categoryLabel:best.rule.label, seasonalProfile:best.rule.seasonalProfile, seasonalNote:(SEASONAL_PROFILES[best.rule.seasonalProfile]||SEASONAL_PROFILES.NONE).note, score:best.score };
+}
+function clampMultiplier(m){ return Math.max(1, Math.min(num(m)||1, 3)); }
+function getSeasonalMultiplier(profileName){ const p=SEASONAL_PROFILES[profileName]||SEASONAL_PROFILES.NONE; return clampMultiplier(p.monthly[monthIndex()] || 1); }
+function getDemandConfig(mode,row){ if(mode==='7D') return {qty:row.QtySold_Online_Total_7d,days:7,label:'7D'}; if(mode==='180D') return {qty:row.QtySold_Online_Total_180d,days:180,label:'180D'}; return {qty:row.QtySold_Online_Total_30d,days:30,label:'30D'}; }
+function getMaxBuy(mode,row){ if(mode==='7D') return ceilNonNeg(row.QtySold_Online_Total_7d * 8); if(mode==='180D') return ceilNonNeg(row.QtySold_Online_Total_180d * 0.5); return ceilNonNeg(row.QtySold_Online_Total_30d * 2); }
+function hasRamp(row){ const q30=row.QtySold_Online_Total_30d,q7=row.QtySold_Online_Total_7d; const r30=q30/30,r7=q7/7; return q30>=10 && r30>0 && r7>=r30*1.5; }
+function buildBuyerReason(res){
+  const lines=[];
+  lines.push(`Sold ${fmtInt(res.demandQty)} units in the last ${fmtInt(res.demandDays)} days (~${fmt1(res.baseDaily)}/day).`);
+  if(res.fallbackUsed) lines.push(`Because recent demand was zero and stock is zero, fallback demand from ${res.fallbackUsed==='Fallback180'?'the last 180 days':'the last 90 days'} was used.`);
+  if(res.seasonalMultiplier>1.01) lines.push(`${res.categoryLabel} seasonal rule applied for ${monthLabel().toLowerCase()}, increasing demand to ~${fmt1(res.adjustedDaily)}/day.`);
+  if(res.adjustedDaily > 0) lines.push(`Current stock is ${fmtInt(res.stock)}, which gives about ${fmtInt(res.daysOfCover)} days of cover.`);
+  else lines.push(`Current stock is ${fmtInt(res.stock)} and there is no active demand signal right now.`);
+  lines.push(`To maintain ${fmtInt(res.coverDays)} days of stock we need ${fmtInt(res.target)} units.`);
+  if(res.minOneFallbackApplied) lines.push(`The normal result would be zero, but a minimum order of 1 unit was allowed because fallback demand exists.`);
+  else lines.push(`Recommended order: ${fmtInt(res.buy)} units.`);
+  if(res.ramp && res.demandMode!=='7D') lines.push(`A 7-day spike is visible, but it is shown as a signal only because ${res.demandMode} mode is selected.`);
+  if(res.capelSignal) lines.push(res.capelSignal);
+  return lines.join(' ');
+}
+function computeRow(row){
+  const demandMode=document.getElementById('demandMode').value;
+  const fallbackOn=document.getElementById('fallbackMode').value==='on';
+  const baseCover=num(document.getElementById('baseCoverDays').value)||56;
+  const lead=num(document.getElementById('leadDays').value)||0;
+  const coverDays=baseCover+lead;
+  const cls=classifySkuName(`${row.ItemTitle} ${row.SKU}`);
+  const seasonalMultiplier=getSeasonalMultiplier(cls.seasonalProfile);
+
+  let d=getDemandConfig(demandMode,row), demandUsed=d.label, demandQty=d.qty, demandDays=d.days, fallbackUsed='';
+  if(fallbackOn && demandQty<=0 && row.NetStock_Arklow<=0){
+    if(row.QtySold_Online_Total_180d>0){ demandQty=row.QtySold_Online_Total_180d; demandDays=180; fallbackUsed='Fallback180'; }
+    else if(row.QtySold_Online_Total_90d>0){ demandQty=row.QtySold_Online_Total_90d; demandDays=90; fallbackUsed='Fallback90'; }
+    if(fallbackUsed) demandUsed=fallbackUsed;
+  }
+  const baseDaily=demandDays>0 ? demandQty/demandDays : 0;
+  let abcClass='C';
+  // Hidden seasonal detection
+  let seasonalSignal='Normal';
+  const qty30 = row.QtySold_Online_Total_30d || 0;
+  const qty180 = row.QtySold_Online_Total_180d || 0;
+  const seasonalRatio = qty30>0 ? (qty180/6)/qty30 : 0;
+  if(qty180>60 && qty30<5) seasonalSignal='Hidden seasonal';
+  if(seasonalRatio>3 && qty30<10) seasonalSignal='Seasonal risk';
+
+  if(qty180>=100){abcClass='A';}
+  else if(qty180>=20){abcClass='B';}
+  let lostSalesRisk='Low';
+
+  const adjustedDaily=baseDaily * seasonalMultiplier;
+  const stock=row.NetStock_Arklow;
+  const target=ceilNonNeg(adjustedDaily * coverDays);
+  const rawBuy=Math.max(0, target-stock);
+  const maxBuy=getMaxBuy(demandMode,row);
+  let buy=Math.min(rawBuy,maxBuy);
+  const minOneFallbackApplied=!!fallbackUsed && stock<=0 && demandQty>0 && buy<=0;
+  if(minOneFallbackApplied) buy=1;
+  const daysOfCover = adjustedDaily > 0 ? (stock / adjustedDaily) : (stock > 0 ? 9999 : 0);
+  const coverStatus = adjustedDaily <= 0 ? (stock > 0 ? 'No demand' : 'Out of Stock')
+    : (daysOfCover < 14 ? 'Critical' : (daysOfCover < 30 ? 'Low' : (daysOfCover <= 60 ? 'Healthy' : 'High')));
+  if((abcClass==='A' && daysOfCover < 10 && ['Rising','Spike','Surge'].includes(accelerationSignal)) || (abcClass==='A' && ['Critical','Out of Stock'].includes(coverStatus))){
+    lostSalesRisk='High';
+  } else if((abcClass==='A' && daysOfCover < 20) || (abcClass==='B' && ['Rising','Spike','Surge'].includes(accelerationSignal) && daysOfCover < 14)){
+    lostSalesRisk='Medium';
+  }
+  const status=stock<=0 ? 'Out of Stock' : (adjustedDaily>0 ? (Math.floor(stock/adjustedDaily)<14 ? 'Critical' : (Math.floor(stock/adjustedDaily)<28 ? 'Low' : 'OK')) : 'No demand');
+  const capelSignal=row.QtySold_Online_CapelStreet_30d>0 ? `Capel Street online sales detected (${fmtInt(row.QtySold_Online_CapelStreet_30d)} units in the last 30 days).` : '';
+  const ramp=hasRamp(row);
+  const res={...row,demandMode,demandUsed,demandQty,demandDays,fallbackUsed,categoryId:cls.categoryId,categoryLabel:cls.categoryLabel,seasonalProfile:cls.seasonalProfile,seasonalNote:cls.seasonalNote,seasonalMultiplier,abcClass,seasonalSignal,lostSalesRisk,baseDaily,adjustedDaily,daysOfCover,coverStatus,coverDays,target,rawBuy,maxBuy,buy,stock,status,ramp,capelSignal,minOneFallbackApplied};
+  res.reason=buildBuyerReason(res); return res;
+}
+function supplierSummaryRows(rows){
+  const map=new Map();
+  for(const r of rows){
+    const k=r.SupplierName||'(Blank supplier)';
+    if(!map.has(k)) map.set(k,{SupplierName:k,skuCount:0,buySkuCount:0,criticalCount:0,lowCount:0,lostSalesHigh:0,seasonalCount:0,totalNetStock:0,totalBuy:0,topSkuBuy:0,topSku:'',topItem:'',importanceScore:0});
+    const s=map.get(k);
+    s.skuCount++;
+    if(r.buy>0) s.buySkuCount++;
+    if(['Critical','Out of Stock'].includes(r.coverStatus)) s.criticalCount++;
+    if(r.coverStatus==='Low') s.lowCount++;
+    if(r.lostSalesRisk==='High') s.lostSalesHigh++;
+    if(r.seasonalMultiplier>1.01) s.seasonalCount++;
+    s.totalNetStock+=r.NetStock_Arklow;
+    s.totalBuy+=r.buy;
+    if(r.buy>s.topSkuBuy){ s.topSkuBuy=r.buy; s.topSku=r.SKU; s.topItem=r.ItemTitle; }
+  }
+  const arr=[...map.values()];
+  
+for(const s of arr){
+    const riskScore = (s.criticalCount*5) + (s.lowCount*3) + (s.lostSalesHigh*4) + (s.buySkuCount*2) + (s.totalBuy/50);
+    let riskLabel='Low';
+    if(riskScore>40) riskLabel='Order now';
+    else if(riskScore>25) riskLabel='High';
+    else if(riskScore>12) riskLabel='Medium';
+    s.riskLabel=riskLabel;
+    s.importanceScore=(s.criticalCount*5000)+(s.lowCount*3000)+(s.buySkuCount*500)+(s.totalBuy)+(s.seasonalCount*25)+s.topSkuBuy;
+}
+
+  return arr.sort((a,b)=>b.importanceScore-a.importanceScore || b.totalBuy-a.totalBuy || b.criticalCount-a.criticalCount || b.lowCount-a.lowCount || a.SupplierName.localeCompare(b.SupplierName));
+}
+function getFilteredRows(){
+  const searchEl = document.getElementById('searchBox');
+  const showEl = document.getElementById('showFilter');
+  const excludeHealthyEl = document.getElementById('excludeHealthyFilter');
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const show = showEl ? showEl.value : 'all';
+  const excludeHealthy = excludeHealthyEl ? excludeHealthyEl.value : 'no';
+  return state.computedRows.filter(r=>{
+    if(q){
+      const hay=`${r.SupplierName} ${r.SKU} ${r.ItemTitle}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    if(show==='buy' && r.buy<=0) return false;
+    if(show==='critical' && !['Critical','Out of Stock'].includes(r.status)) return false;
+    if(excludeHealthy === 'yes' && ['Healthy','High'].includes(r.coverStatus)) return false;
+    if(state.activeSupplier && r.SupplierName!==state.activeSupplier) return false;
+    return true;
+  });
+}
+function recompute(){ state.computedRows=state.rawRows.map(computeRow); render(); }
+
+
+function renderOrderPreview(rows){
+  const card = document.getElementById('orderPreviewCard');
+  if(!card) return;
+  if(!state.activeSupplier){
+    card.style.display = 'none';
+    return;
+  }
+  const selected = rows.filter(r => r.buy > 0);
+  card.style.display = 'block';
+  const crit = selected.filter(r => ['Critical','Out of Stock'].includes(r.coverStatus)).length;
+  const aitems = selected.filter(r => r.abcClass === 'A').length;
+  const top = [...selected].sort((a,b)=>{
+    const ra = (['Out of Stock','Critical'].includes(a.coverStatus) ? 2 : a.coverStatus === 'Low' ? 1 : 0);
+    const rb = (['Out of Stock','Critical'].includes(b.coverStatus) ? 2 : b.coverStatus === 'Low' ? 1 : 0);
+    return rb - ra || a.daysOfCover - b.daysOfCover || b.buy - a.buy;
+  })[0];
+
+  document.getElementById('opSkuCount').textContent = fmtInt(selected.length);
+  document.getElementById('opUnits').textContent = fmtInt(selected.reduce((s,r)=>s+r.buy,0));
+  document.getElementById('opCritical').textContent = fmtInt(crit);
+  document.getElementById('opAItems').textContent = fmtInt(aitems);
+  document.getElementById('opTopRisk').textContent = top ? `${top.SKU} · ${top.ItemTitle}` : '—';
+}
+function renderLostSalesRisk(rows){
+  const summaryEl = document.getElementById('lostSalesRiskSummary');
+  const listEl = document.getElementById('lostSalesRiskList');
+  const cardEl = document.getElementById('lostSalesRiskCard');
+  if(!summaryEl || !listEl || !cardEl) return;
+  const riskRows = rows.filter(r => r.lostSalesRisk === 'High').sort((a,b)=>a.daysOfCover-b.daysOfCover || b.buy-a.buy).slice(0, 12);
+  if(!riskRows.length){
+    summaryEl.textContent = 'No high lost-sales risks in the current view.';
+    listEl.innerHTML = '';
+    return;
+  }
+  summaryEl.textContent = `${riskRows.length} high lost-sales risks in the current view.`;
+  listEl.innerHTML = riskRows.map(r=>{
+    const cover = r.daysOfCover >= 9999 ? '∞' : fmtInt(r.daysOfCover);
+    return `<span class="chip crit">${esc(r.SKU)} · ${esc(r.abcClass)} · ${cover}d · ${esc(r.accelerationSignal)}</span>`;
+  }).join('');
+}
+function renderAItemRadar(rows){
+  const radarRows = rows
+    .filter(r => r.abcClass === 'A' && ['Critical','Out of Stock'].includes(r.coverStatus))
+    .sort((a,b)=>a.daysOfCover-b.daysOfCover || b.buy-a.buy)
+    .slice(0, 12);
+
+  const summaryEl = document.getElementById('aItemRadarSummary');
+  const listEl = document.getElementById('aItemRadarList');
+  const cardEl = document.getElementById('aItemRadarCard');
+  if(!summaryEl || !listEl || !cardEl) return;
+
+  if(!radarRows.length){
+    summaryEl.textContent = 'No critical A-items under 14 days of cover in the current view.';
+    listEl.innerHTML = '';
+    return;
+  }
+
+  summaryEl.textContent = `${radarRows.length} critical A-items under 14 days cover in the current view.`;
+  listEl.innerHTML = radarRows.map(r => {
+    const cover = r.daysOfCover >= 9999 ? '∞' : fmtInt(r.daysOfCover);
+    return `<span class="chip crit">${esc(r.SKU)} · ${cover}d · Buy ${fmtInt(r.buy)}</span>`;
+  }).join('');
+}
+function render(){
+  const mode=document.getElementById('demandMode').value;
+  document.getElementById('mMode').textContent=mode;
+  document.getElementById('modeBadge').textContent=`Mode: ${mode}`;
+  document.getElementById('monthBadge').textContent=`Month: ${monthLabel()}`;
+  document.getElementById('mSuppliers').textContent=fmtInt(new Set(state.computedRows.map(r=>r.SupplierName||'(Blank supplier)')).size);
+  const rows=getFilteredRows();
+  document.getElementById('mCritical').textContent=fmtInt(rows.filter(r=>['Critical','Out of Stock'].includes(r.status)).length);
+  renderAItemRadar(rows);
+  renderLostSalesRisk(rows);
+  renderOrderPreview(rows);
+  const supplierTable=document.getElementById('supplierTable'), detailTable=document.getElementById('detailTable'), backBtn=document.getElementById('backBtn'), activeLabel=document.getElementById('activeSupplierLabel');
+  if(state.activeSupplier){
+    supplierTable.style.display='none'; detailTable.style.display='table'; backBtn.style.display='inline-flex'; activeLabel.textContent=`Supplier: ${state.activeSupplier}`;
+    document.getElementById('resultCount').textContent=`${fmtInt(rows.length)} SKUs`;
+    document.getElementById('mRows').textContent=fmtInt(rows.length);
+    document.getElementById('mBuy').textContent=fmtInt(rows.reduce((s,r)=>s+r.buy,0));
+    document.getElementById('detailTbody').innerHTML=rows.sort((a,b)=>b.buy-a.buy || b.target-a.target || a.SKU.localeCompare(b.SKU)).map(r=>{
+      const statusCls=r.status==='OK'?'good-txt':(r.status==='Low'?'warn-txt':'bad');
+      const chips=[`<span class="chip category">${esc(r.categoryLabel)}</span>`];
+      if(r.seasonalMultiplier>1.01) chips.push(`<span class="chip season">${esc(r.seasonalNote)}</span>`);
+      if(r.fallbackUsed) chips.push(`<span class="chip rule">${esc(r.fallbackUsed)}</span>`);
+      if(r.minOneFallbackApplied) chips.push(`<span class="chip rule">Min order 1</span>`);
+      if(r.ramp && r.demandMode!=='7D') chips.push(`<span class="chip rule">7D spike visible</span>`);
+      const coverCls = r.coverStatus === 'Healthy' ? 'good-txt' : (r.coverStatus === 'Low' ? 'warn-txt' : (r.coverStatus === 'Critical' || r.coverStatus === 'Out of Stock' ? 'bad' : ''));
+      const coverText = r.daysOfCover >= 9999 ? '∞' : fmtInt(r.daysOfCover);
+      return `<tr><td>${esc(r.SKU)}</td><td><div>${esc(r.ItemTitle)}</div></td><td><strong>${esc(r.abcClass)}</strong></td><td>${esc(r.seasonalSignal)}</td><td><div class="chip-row">${chips.join('')}</div></td><td>${esc(r.seasonalNote)}</td><td class="num">${fmt1(r.seasonalMultiplier)}x</td><td class="num">${fmtInt(r.stock)}</td><td class="num">${fmtInt(r.demandQty)}</td><td class="num">${fmt1(r.adjustedDaily)}</td><td class="num">${coverText}</td><td class="${coverCls}">${esc(r.coverStatus)}</td><td class="num">${fmtInt(r.coverDays)}</td><td class="num">${fmtInt(r.target)}</td><td class="num">${fmtInt(r.maxBuy)}</td><td class="num"><strong>${fmtInt(r.buy)}</strong></td><td class="${statusCls}">${esc(r.status)}</td><td class="reason">${esc(r.reason).replace('Capel Street online sales detected','<span class="bad">Capel Street online sales detected</span>')}</td></tr>`;
+    }).join('');
+  }else{
+    const summary=supplierSummaryRows(rows);
+    supplierTable.style.display='table'; detailTable.style.display='none'; backBtn.style.display='none'; activeLabel.textContent='';
+    document.getElementById('resultCount').textContent=`${fmtInt(summary.length)} suppliers`;
+    document.getElementById('mRows').textContent=fmtInt(summary.length);
+    document.getElementById('mBuy').textContent=fmtInt(summary.reduce((s,r)=>s+r.totalBuy,0));
+    document.getElementById('supplierTbody').innerHTML=summary.map((s,idx)=>`<tr><td><div class="stack"><a href="#" class="supplier-link" data-supplier="${esc(s.SupplierName)}">${esc(s.SupplierName)}</a><div class="chip-row"><span class="chip rule">${esc(s.riskLabel)}</span><span class="chip crit">🔴 ${fmtInt(s.criticalCount)}</span><span class="chip low">🟠 ${fmtInt(s.lowCount)}</span><span class="chip buy">📦 ${fmtInt(s.totalBuy)}</span></div></div></td><td class="num"><strong>#${fmtInt(idx+1)}</strong></td><td class="num">${fmtInt(s.criticalCount)}</td><td class="num">${fmtInt(s.lowCount)}</td><td class="num">${fmtInt(s.buySkuCount)}</td><td class="num"><strong>${fmtInt(s.totalBuy)}</strong></td><td class="num">${fmtInt(s.seasonalCount)}</td><td class="num">${fmtInt(s.skuCount)}</td><td class="num">${fmtInt(s.topSkuBuy)}</td><td>${esc(s.topSku)}${s.topItem ? ' · ' + esc(s.topItem) : ''}</td></tr>`).join('');
+    document.querySelectorAll('.supplier-link').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); state.activeSupplier=a.dataset.supplier; render(); }));
+  }
+}
+function exportCSV(){
+  let rows=getFilteredRows(); if(!rows.length) return;
+  let cols, filename;
+  if(state.activeSupplier){ cols=['SupplierName','SKU','ItemTitle','categoryLabel','seasonalNote','seasonalMultiplier','demandMode','demandUsed','demandQty','demandDays','baseDaily','adjustedDaily','daysOfCover','coverStatus','coverDays','stock','target','maxBuy','buy','status','reason']; filename=`supplier_detail_${state.activeSupplier.replace(/[^a-z0-9]+/gi,'_').toLowerCase()}_${document.getElementById('demandMode').value}.csv`; }
+  else { rows=supplierSummaryRows(rows); cols=['SupplierName','skuCount','buySkuCount','criticalCount','seasonalCount','totalNetStock','totalBuy','topSkuBuy','topSku','topItem']; filename=`supplier_summary_${document.getElementById('demandMode').value}.csv`; }
+  const lines=[cols.join(',')];
+  for(const r of rows){ lines.push(cols.map(c=>{ let v=r[c]; if(typeof v==='number') v=String(v); v=String(v ?? ''); if(/[",\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"'; return v; }).join(',')); }
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href);
+}
+async function fetchWithTimeout(url, ms){ const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),ms); try{ const res=await fetch(url,{signal:controller.signal,cache:'no-store'}); clearTimeout(timer); return res; } catch(err){ clearTimeout(timer); throw err; } }
+async function testUrl(){
+  const input=document.getElementById('csvUrl'); const rawUrl=input.value.trim(); if(!rawUrl) return setStatus('Paste a CSV URL first.', true);
+  const url=normalizeGoogleCsvUrl(rawUrl); input.value=url; setStatus('Testing URL...'); setLoadMeta('');
+  document.getElementById('loadUrlBtn').disabled=true; document.getElementById('testUrlBtn').disabled=true;
+  try{
+    const started=performance.now(); const res=await fetchWithTimeout(url,12000); if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const contentType=(res.headers.get('content-type')||'').toLowerCase(); const text=await res.text(); const secs=((performance.now()-started)/1000).toFixed(1);
+    if(/text\/html|application\/html/.test(contentType) || /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text)) throw new Error('Returned HTML instead of CSV');
+    const preview=parseCSV(text); if(!preview.length) throw new Error('No CSV rows detected');
+    const missing=detectMissingColumns(preview); setStatus(`URL works. Preview rows: ${preview.length}.`, false); setLoadMeta(`Fetched in ${secs}s${missing.length ? ' · Missing columns: ' + missing.join(', ') : ' · Required columns detected.'}`, false);
+  }catch(err){
+    let msg=err && err.name==='AbortError' ? 'URL test timed out after 12 seconds.' : `URL test failed: ${err.message}`; if(window.location.protocol==='file:') msg+=' Local file mode can block remote fetches.'; setStatus(msg,true);
+  }finally{ document.getElementById('loadUrlBtn').disabled=false; document.getElementById('testUrlBtn').disabled=false; }
+}
+async function loadFromUrl(){
+  const input=document.getElementById('csvUrl'); const rawUrl=input.value.trim(); if(!rawUrl) return setStatus('Paste a CSV URL first.', true);
+  const url=normalizeGoogleCsvUrl(rawUrl); input.value=url;
+  if(window.location.protocol==='file:' && /^https?:/i.test(url)) setLoadMeta('You are opening this dashboard as a local file. Some browsers block remote fetches from file:// pages. If loading fails, use CSV upload or run a small local web server.', false); else setLoadMeta('', false);
+  setStatus('Loading from URL...', false);
+  document.getElementById('loadUrlBtn').disabled=true; document.getElementById('testUrlBtn').disabled=true;
+  try{
+    const started=performance.now(); const res=await fetchWithTimeout(url,20000); if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const contentType=(res.headers.get('content-type')||'').toLowerCase(); const text=await res.text();
+    if(/text\/html|application\/html/.test(contentType) || /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text)) throw new Error('The URL returned HTML instead of CSV.');
+    const parsedRaw=parseCSV(text); const missing=detectMissingColumns(parsedRaw); const parsed=parsedRaw.map(normalizeRow).filter(r=>r.SKU || r.ItemTitle);
+    if(parsed.length===0) throw new Error('No rows found in CSV.');
+    state.rawRows=parsed; state.activeSupplier=''; recompute();
+    const secs=((performance.now()-started)/1000).toFixed(1); setStatus(`Loaded ${fmtInt(parsed.length)} rows from URL.${missing.length ? ' Missing columns: ' + missing.join(', ') : ''}`, false); setLoadMeta(`Loaded via URL in ${secs}s.`, false);
+  }catch(err){
+    let msg=err && err.name==='AbortError' ? 'Loading timed out after 20 seconds.' : `Failed to load URL: ${err.message}`; if(window.location.protocol==='file:') msg+=' If this is a local HTML file, try CSV upload or run a local server.'; setStatus(msg,true);
+  }finally{ document.getElementById('loadUrlBtn').disabled=false; document.getElementById('testUrlBtn').disabled=false; }
+}
+function loadFromCsvText(text, sourceName){
+  setStatus(`Parsing ${sourceName}...`, false);
+  const parsedRaw=parseCSV(text); const missing=detectMissingColumns(parsedRaw); const parsed=parsedRaw.map(normalizeRow).filter(r=>r.SKU || r.ItemTitle);
+  if(parsed.length===0){ setStatus('No rows found in CSV.', true); return; }
+  state.rawRows=parsed; state.activeSupplier=''; recompute();
+  setStatus(`Loaded ${fmtInt(parsed.length)} rows from ${sourceName}.${missing.length ? ' Missing columns: ' + missing.join(', ') : ''}`, false); setLoadMeta('', false);
+}
+function loadSample(){
+  const sample=`SupplierName,SKU,ItemTitle,AvailableQty_CapelStreet,AvailableQty_Arklow,OnOrderQty_Arklow,NetStock_Arklow,QtySold_Online_CapelStreet_30d,QtySold_Online_Total_30d,QtySold_Online_Total_7d,QtySold_Online_Total_90d,QtySold_Online_Total_180d
+JML,A002485,JML Starlyf Cordless Rechargeable Power Washer Bird Kite,50,44,1,45,30,83,9,165,265
+JML,A002486,Slug Killer Pellets 3kg,12,4,3,7,2,8,1,20,38
+Acme,B100001,Acme Garden Hose 30m,8,3,20,23,6,18,4,52,98
+Acme,B100002,Rock Salt 20kg,0,0,0,0,1,0,0,5,12
+Acme,B100003,Christmas Tree Lights 500 LED,0,5,0,5,0,2,0,8,14`;
+  loadFromCsvText(sample,'sample data');
+}
+function updateBuyRiskButtons(){
+  const viewBtn = document.getElementById('buyRiskModeBtn');
+  const clearBtn = document.getElementById('clearRiskFiltersBtn');
+  if(viewBtn) viewBtn.textContent = '⚠ View buy risks';
+  if(clearBtn) clearBtn.textContent = 'Clear risk filters';
+}
+function clearRiskFilters(){
+  const showEl = document.getElementById('showFilter');
+  const excludeEl = document.getElementById('excludeHealthyFilter');
+  const searchEl = document.getElementById('searchBox');
+  if(showEl) showEl.value = 'all';
+  if(excludeEl) excludeEl.value = 'no';
+  if(searchEl) searchEl.value = '';
+  if(state.rawRows.length) render();
+}
+function applyBuyRiskMode(){
+  const showEl = document.getElementById('showFilter');
+  const excludeEl = document.getElementById('excludeHealthyFilter');
+  if(showEl) showEl.value = 'buy';
+  if(excludeEl) excludeEl.value = 'yes';
+  if(state.rawRows.length) render();
+}
+function updateBuyRiskButtons(){
+  const viewBtn = document.getElementById('buyRiskModeBtn');
+  const clearBtn = document.getElementById('clearRiskFiltersBtn');
+  if(viewBtn) viewBtn.textContent = '⚠ View buy risks';
+  if(clearBtn) clearBtn.textContent = 'Clear risk filters';
+}
+function clearRiskFilters(){
+  const showEl = document.getElementById('showFilter');
+  const excludeEl = document.getElementById('excludeHealthyFilter');
+  const searchEl = document.getElementById('searchBox');
+  if(showEl) showEl.value = 'all';
+  if(excludeEl) excludeEl.value = 'no';
+  if(searchEl) searchEl.value = '';
+  if(state.rawRows.length) render();
+}
+function applyBuyRiskMode(){
+  const showEl = document.getElementById('showFilter');
+  const excludeEl = document.getElementById('excludeHealthyFilter');
+  if(showEl) showEl.value = 'buy';
+  if(excludeEl) excludeEl.value = 'yes';
+  if(state.rawRows.length) render();
+}
+function bindEvents(){
+  const byId = (id) => document.getElementById(id);
+
+  const loadUrlBtn = byId('loadUrlBtn');
+  if(loadUrlBtn) loadUrlBtn.addEventListener('click', loadFromUrl);
+
+  const autoLoadBtn = byId('autoLoadBtn');
+  if(autoLoadBtn) autoLoadBtn.addEventListener('click', ()=>{
+    const urlEl = byId('csvUrl');
+    if(urlEl) urlEl.value = DEFAULT_URL;
+    loadFromUrl();
+  });
+
+  const testUrlBtn = byId('testUrlBtn');
+  if(testUrlBtn) testUrlBtn.addEventListener('click', testUrl);
+
+  const sampleBtn = byId('sampleBtn');
+  if(sampleBtn) sampleBtn.addEventListener('click', loadSample);
+
+  const csvFile = byId('csvFile');
+  if(csvFile) csvFile.addEventListener('change', async (e)=>{
+    const f=e.target.files[0];
+    if(!f) return;
+    setStatus(`Reading ${f.name}...`, false);
+    const fileText=await f.text();
+    loadFromCsvText(fileText,f.name);
+  });
+
+  ['searchBox','demandMode','leadDays','baseCoverDays','fallbackMode','showFilter','excludeHealthyFilter'].forEach(id=>{
+    const el=byId(id);
+    if(!el) return;
+    el.addEventListener('input', ()=> state.rawRows.length && recompute());
+    el.addEventListener('change', ()=> state.rawRows.length && recompute());
+  });
+
+  const backBtn = byId('backBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ state.activeSupplier=''; render(); });
+
+  const buyRiskBtn = byId('buyRiskModeBtn');
+  if(buyRiskBtn) buyRiskBtn.addEventListener('click', applyBuyRiskMode);
+
+  const clearRiskFiltersBtn = byId('clearRiskFiltersBtn');
+  if(clearRiskFiltersBtn) clearRiskFiltersBtn.addEventListener('click', clearRiskFilters);
+
+  updateBuyRiskButtons();
+
+  const exportBtn = byId('exportBtn');
+  if(exportBtn) exportBtn.addEventListener('click', exportCSV);
+
+  if(window.location.hash==='#autoload'){
+    setTimeout(()=>{ if(autoLoadBtn) autoLoadBtn.click(); },150);
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>{ bindEvents(); const monthBadge = document.getElementById('monthBadge'); if(monthBadge) monthBadge.textContent = `Month: ${monthLabel()}`; setStatus('Ready. Supplier risk is shown, and Lost Sales Risk Detector now highlights the SKUs most likely to lose sales first.', false); });
+</script>
+</body>
+</html>
