@@ -310,6 +310,16 @@
     }
     .guidance-strip .small{display:flex;gap:20px;flex-wrap:wrap;color:var(--text-secondary)}
     .guidance-strip .small span{white-space:nowrap}
+    /* ── Channel toggle ─────────────────────────────────────────────────── */
+    .channel-bar{display:flex;align-items:center;gap:8px;background:#f0f9ff;border:2px solid #bae6fd;border-radius:10px;padding:8px 14px;margin-bottom:10px}
+    .channel-bar .lbl{font-size:12px;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;margin-right:4px}
+    .channel-btn{padding:7px 20px;border-radius:8px;border:2px solid transparent;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s}
+    .channel-btn.arklow{background:#1e40af;color:#fff;border-color:#1e40af}
+    .channel-btn.arklow:not(.active){background:#fff;color:#1e40af;border-color:#1e40af}
+    .channel-btn.capel{background:#7c3aed;color:#fff;border-color:#7c3aed}
+    .channel-btn.capel:not(.active){background:#fff;color:#7c3aed;border-color:#7c3aed}
+    .channel-btn.active{opacity:1}
+    .channel-btn:not(.active){opacity:.7}
 
     @media (max-width:1100px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
@@ -352,6 +362,13 @@
     <div id="loadStatus" class="footer">No data loaded.</div>
     <div id="loadMeta" class="footer"></div>
     <div id="govStatus"></div>
+  </div>
+
+  <div class="channel-bar">
+    <span class="lbl">📦 Channel:</span>
+    <button class="channel-btn arklow active" id="channelArklow">🏭 Arklow Online</button>
+    <button class="channel-btn capel" id="channelCapel">🏪 Capel Street Shop</button>
+    <span id="channelNote" style="font-size:12px;color:#0369a1;margin-left:8px">Stock basis: NetStock_Arklow · Demand: Magento online orders</span>
   </div>
 
   <div class="controls">
@@ -445,7 +462,7 @@
       <button id="backBtn" class="secondary" style="display:none">← Back to suppliers</button>
       <span class="muted" id="activeSupplierLabel"></span>
     </div>
-    <div class="small">Stock basis = NetStock_Arklow only · Capel demand = visibility only · use Exclude Healthy or View buy risks to focus on what needs ordering</div>
+    <div class="small" id="guidanceText">Stock basis = NetStock_Arklow only · Capel demand = visibility only · use Exclude Healthy or View buy risks to focus on what needs ordering</div>
   </div>
 
   <div class="table-panel">
@@ -478,7 +495,8 @@
         <thead>
           <tr>
             <th style="min-width:90px">SKU</th>
-            <th style="min-width:180px">Item</th>
+            <th style="width:60px;max-width:60px">Rank</th>
+            <th style="min-width:160px">Item</th>
             <th style="min-width:260px">Reason / Signals</th>
             <th class="num">Buy</th>
             <th class="num">Omit</th>
@@ -511,7 +529,11 @@
         <div class="cs-divider"></div>
         <div class="cs-summary-stat"><div class="val" id="csSlowCount">—</div><div class="lbl">Slow SKUs (0 sales 30D)</div></div>
         <div class="cs-divider"></div>
-        <div class="cs-summary-stat"><div class="val red" id="csStockValue">—</div><div class="lbl">Est. stock value tied up</div></div>
+        <div class="cs-summary-stat"><div class="val red" id="csStockValue">—</div><div class="lbl">Est. cost value (known prices only)</div></div>
+        <div class="cs-divider"></div>
+        <div class="cs-summary-stat"><div class="val" id="csRetailValue" style="color:#7c3aed">—</div><div class="lbl">Est. retail value @ 50% margin</div></div>
+        <div class="cs-divider"></div>
+        <div class="cs-summary-stat"><div class="val" id="csMissingCost" style="color:#94a3b8">—</div><div class="lbl">SKUs with no cost price</div></div>
       </div>
       <div class="cs-filter-bar">
         <span style="font-size:12px;font-weight:700;color:#64748b">Show:</span>
@@ -553,15 +575,16 @@ function detectSlowTheme(title){
 }
 
 function classifySlowMover(r){
-  const q30=r.QtySold_Online_Total_30d||0;
-  const q90=r.QtySold_Online_Total_90d||0;
-  const q180=r.QtySold_Online_Total_180d||0;
-  const stock=r.stock||r.NetStock_Arklow||0;
-  if(stock<=0) return null; // no stock = nothing to clear
+  const isCapel = state.channel==='capel';
+  const q30 = isCapel ? (r.QtySold_Shop_CapelStreet_30d||0)  : (r.QtySold_Online_Total_30d||0);
+  const q90 = isCapel ? (r.QtySold_Shop_CapelStreet_90d||0)  : (r.QtySold_Online_Total_90d||0);
+  const q180= isCapel ? (r.QtySold_Shop_CapelStreet_180d||0) : (r.QtySold_Online_Total_180d||0);
+  const stock= isCapel ? (r.NetStock_CapelStreet||0) : (r.stock||r.NetStock_Arklow||0);
+  if(stock<=0) return null;
   if(q180===0) return 'dead';
   if(q90===0)  return 'stale';
   if(q30===0)  return 'slow';
-  return null; // selling fine
+  return null;
 }
 
 function suggestDiscount(costPrice, currentRevDaily, stock){
@@ -581,7 +604,7 @@ function suggestDiscount(costPrice, currentRevDaily, stock){
 function generateCampaign(theme, skus, filter){
   const deadCount=skus.filter(r=>r._slowClass==='dead').length;
   const totalStock=skus.reduce((s,r)=>s+(r.stock||0),0);
-  const totalValue=skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
+  const totalValue=skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
   const season=new Date().getMonth();
   const isSummer=season>=3&&season<=8;
 
@@ -629,11 +652,14 @@ function renderClearStock(){
   const deadAll=allSlow.filter(x=>x.cls==='dead');
   const staleAll=allSlow.filter(x=>x.cls==='stale');
   const slowAll=allSlow.filter(x=>x.cls==='slow');
-  const totalVal=allSlow.reduce((s,x)=>s+((x.r.stock||0)*(x.r.SupplierCostPrice||0)),0);
+  const totalVal=allSlow.reduce((s,x)=>s+((x.r.stock||0)*(x.r._bestKnownCost||0)),0);
+  const missingCost=allSlow.filter(x=>!(x.r._bestKnownCost>0)).length;
   document.getElementById('csDeadCount').textContent=fmtInt(deadAll.length);
   document.getElementById('csStaleCount').textContent=fmtInt(staleAll.length);
   document.getElementById('csSlowCount').textContent=fmtInt(slowAll.length);
   document.getElementById('csStockValue').textContent=totalVal>0?`€${fmtInt(totalVal)}`:'N/A';
+  document.getElementById('csRetailValue').textContent=totalVal>0?`€${fmtInt(totalVal/0.5)}`:'N/A';
+  document.getElementById('csMissingCost').textContent=fmtInt(missingCost);
 
   if(!slowRows.length){
     container.innerHTML='<div class="cs-no-data">No slow movers found for the selected filter.</div>';
@@ -649,8 +675,8 @@ function renderClearStock(){
   }
   // Sort themes by total stock value desc
   const themes=[...themeMap.values()].sort((a,b)=>{
-    const va=a.skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
-    const vb=b.skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
+    const va=a.skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
+    const vb=b.skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
     return vb-va;
   });
 
@@ -660,11 +686,11 @@ function renderClearStock(){
     skus.sort((a,b)=>{
       const order={dead:0,stale:1,slow:2};
       if(order[a._slowClass]!==order[b._slowClass]) return order[a._slowClass]-order[b._slowClass];
-      return ((b.stock||0)*(b.SupplierCostPrice||0))-((a.stock||0)*(a.SupplierCostPrice||0));
+      return ((b.stock||0)*(b._bestKnownCost||0))-((a.stock||0)*(a._bestKnownCost||0));
     });
     const deadCount=skus.filter(r=>r._slowClass==='dead').length;
     const staleCount=skus.filter(r=>r._slowClass==='stale').length;
-    const themeValue=skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
+    const themeValue=skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
     const campaign=generateCampaign(theme,skus,filter);
     const top5=skus.slice(0,5);
 
@@ -699,14 +725,19 @@ function renderClearStock(){
           </tr></thead>
           <tbody>
           ${skus.map(r=>{
-            const val=(r.stock||0)*(r.SupplierCostPrice||0);
-            const disc=suggestDiscount(r.SupplierCostPrice, r.Revenue_Online_Total_30d/30, r.stock||0);
+            const val=(r.stock||0)*(r._bestKnownCost||0);
+            const disc=suggestDiscount(r._bestKnownCost, r.Revenue_Online_Total_30d/30, r.stock||0);
+            const costDisplay=r._bestKnownCost>0
+              ? (r._bestKnownCost!==r.SupplierCostPrice&&r.SupplierCostPrice>0
+                  ? `<span title="Best known cost across suppliers">€${fmt1(r._bestKnownCost)}</span>`
+                  : `€${fmt1(r._bestKnownCost)}`)
+              : '—';
             return `<tr class="${r._slowClass}">
               <td style="font-family:monospace;font-size:11px;font-weight:700;color:#1e40af">${esc(r.SKU)}</td>
               <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.ItemTitle)}">${esc(r.ItemTitle)}</td>
               <td><span class="cs-badge ${r._slowClass}">${r._slowClass==='dead'?'🔴 Dead 180D':r._slowClass==='stale'?'🟠 Stale 90D':'🟡 Slow 30D'}</span></td>
               <td class="r">${fmtInt(r.stock||0)}</td>
-              <td class="r">${r.SupplierCostPrice>0?'€'+fmt1(r.SupplierCostPrice):'—'}</td>
+              <td class="r">${costDisplay}</td>
               <td class="r">${val>0?'€'+fmtInt(val):'—'}</td>
               <td class="r"><span class="cs-disc ${disc.cls}">${disc.label}</span></td>
             </tr>`;
@@ -731,6 +762,8 @@ const state = {
   governedSuppliers: new Set(),
   omittedSkus: new Set(),
   supplierSort: {col:'skuCount', dir:-1},
+  skuRankMap: new Map(),
+  channel: 'arklow', // 'arklow' or 'capel'
   monthlyData: {},      // SKU -> { '2024_03': qty, '2024_04': qty, ... }
   monthlyLoaded: false, // true once monthly feed has been attempted
 };
@@ -859,20 +892,29 @@ function detectMissingColumns(rows){
 }
 
 function normalizeRow(r){
+  // Accept both full column names and short aliases from updated SQL
+  const n=k=>num(r[k]||0);
   return {
     SupplierName:r.SupplierName||'',
     SKU:r.SKU||'',
     ItemTitle:r.ItemTitle||'',
-    AvailableQty_CapelStreet:num(r.AvailableQty_CapelStreet),
-    AvailableQty_Arklow:num(r.AvailableQty_Arklow),
-    OnOrderQty_Arklow:num(r.OnOrderQty_Arklow),
-    NetStock_Arklow:num(r.NetStock_Arklow),
-    QtySold_Online_CapelStreet_30d:num(r.QtySold_Online_CapelStreet_30d),
-    QtySold_Online_Total_7d:num(r.QtySold_Online_Total_7d),
-    QtySold_Online_Total_30d:num(r.QtySold_Online_Total_30d),
-    QtySold_Online_Total_90d:num(r.QtySold_Online_Total_90d),
-    QtySold_Online_Total_180d:num(r.QtySold_Online_Total_180d),
-    Revenue_Online_Total_30d:num(r.Revenue_Online_Total_30d),
+    AvailableQty_CapelStreet:   n('AvailableQty_CapelStreet')||n('AQty_CS'),
+    AvailableQty_Arklow:        n('AvailableQty_Arklow')||n('AQty_AK'),
+    OnOrderQty_CapelStreet:     n('OnOrderQty_CapelStreet')||n('OOQty_CS'),
+    OnOrderQty_Arklow:          n('OnOrderQty_Arklow')||n('OOQty_AK'),
+    NetStock_Arklow:            n('NetStock_Arklow'),
+    NetStock_CapelStreet:       n('NetStock_CapelStreet'),
+    QtySold_Online_CapelStreet_30d: n('QtySold_Online_CapelStreet_30d')||n('QSold_OnCS30'),
+    QtySold_Online_Total_7d:    n('QtySold_Online_Total_7d')||n('QSold_On7'),
+    QtySold_Online_Total_30d:   n('QtySold_Online_Total_30d')||n('QSold_On30'),
+    QtySold_Online_Total_90d:   n('QtySold_Online_Total_90d')||n('QSold_On90'),
+    QtySold_Online_Total_180d:  n('QtySold_Online_Total_180d')||n('QSold_On180'),
+    Revenue_Online_Total_30d:   n('Revenue_Online_Total_30d')||n('Rev_On30'),
+    QtySold_Shop_CapelStreet_7d:  n('QtySold_Shop_CapelStreet_7d')||n('QSold_ShCS7'),
+    QtySold_Shop_CapelStreet_30d: n('QtySold_Shop_CapelStreet_30d')||n('QSold_ShCS30'),
+    QtySold_Shop_CapelStreet_90d: n('QtySold_Shop_CapelStreet_90d')||n('QSold_ShCS90'),
+    QtySold_Shop_CapelStreet_180d:n('QtySold_Shop_CapelStreet_180d')||n('QSold_ShCS180'),
+    Revenue_Shop_CapelStreet_30d: n('Revenue_Shop_CapelStreet_30d')||n('Rev_ShCS30'),
     SupplierCostPrice:num(r.SupplierCostPrice),
     SupplierMinOrder:num(r.SupplierMinOrder),
     SupplierPackSize:Math.max(1,num(r.SupplierPackSize)||1),
@@ -884,38 +926,36 @@ function normalizeRow(r){
 
 // ─── CS FEED PARSING ─────────────────────────────────────────────────────────
 function parseCSFeed(rows){
-  // Expected columns: SKU, Supplier, Qty, Reason, Active, Expires
+  // Expected columns: SKU, Supplier, Qty, Reason, Active, Expires, Channel
   const today = new Date(); today.setHours(0,0,0,0);
   const lines = [];
   for(const r of rows){
-    const sku    = String(r.SKU||r['SKU']||'').trim();
+    const sku      = String(r.SKU||r['SKU']||'').trim();
     const supplier = String(r.Supplier||r['Supplier']||'').trim();
-    const qty    = num(r.Qty||r['Qty']||0);
-    const reason = String(r.Reason||r['Reason']||'').trim();
-    const active = String(r.Active||r['Active']||'').trim().toLowerCase();
-    const expires= String(r.Expires||r['Expires']||'').trim();
+    const qty      = num(r.Qty||r['Qty']||0);
+    const reason   = String(r.Reason||r['Reason']||'').trim();
+    const active   = String(r.Active||r['Active']||'').trim().toLowerCase();
+    const expires  = String(r.Expires||r['Expires']||'').trim();
+    const channel  = String(r.Channel||r['Channel']||'Arklow').trim().toLowerCase();
 
     if(!sku || !supplier) continue;
-    // blank Active = active
     if(active === 'no' || active === 'false' || active === '0') continue;
-    // expired rows ignored
     if(expires){
       const expDate = new Date(expires);
       if(!isNaN(expDate) && expDate < today) continue;
     }
-    lines.push({sku, supplier, qty, reason});
+    // channel: 'arklow', 'capel street', or 'both'
+    lines.push({sku, supplier, qty, reason, channel});
   }
   return lines;
 }
 
 // ─── PO STATUS FEED PARSING ──────────────────────────────────────────────────
 function parsePOFeed(rows){
-  // Flexible: look for columns containing 'supplier', 'status', 'person'/'buyer', 'date'
+  // Columns: MonthKey, Supplier, Channel, Status, DoneDate, DoneBy
   const map = {};
   if(!rows.length) return map;
   const headers = Object.keys(rows[0]).map(h=>h.toLowerCase());
-
-  // find column indices by keyword
   function findCol(keywords){
     for(const kw of keywords){
       const idx = headers.findIndex(h=>h.includes(kw));
@@ -925,25 +965,57 @@ function parsePOFeed(rows){
   }
   const supplierCol = findCol(['supplier']);
   const statusCol   = findCol(['status','po status','po_status']);
-  const personCol   = findCol(['person','buyer','contact','raised by','raisedby']);
-  const dateCol     = findCol(['date','po date','po_date','ordered','sent']);
+  const personCol   = findCol(['doneby','done by','person','buyer','contact','raised by']);
+  const dateCol     = findCol(['donedate','done date','date','po date','ordered','sent']);
+  const channelCol  = findCol(['channel']);
 
   if(!supplierCol || !statusCol) return map;
 
   for(const r of rows){
-    const supplier = String(r[supplierCol]||'').trim();
-    const rawStatus= String(r[statusCol]||'').trim();
+    const supplier   = String(r[supplierCol]||'').trim();
+    const rawStatus  = String(r[statusCol]||'').trim();
     if(!supplier || !rawStatus) continue;
+    const channel    = channelCol ? String(r[channelCol]||'Arklow').trim().toLowerCase() : 'arklow';
     const statusLower = rawStatus.toLowerCase();
     const isDone = PO_DONE_STATUSES.some(s=>statusLower.includes(s));
-    map[supplier] = {
-      raw: rawStatus,
-      isDone,
+    // Key by supplier+channel so both channels can have independent PO status
+    const key = `${supplier}||${channel}`;
+    map[key] = {
+      raw: rawStatus, isDone,
       person: personCol ? String(r[personCol]||'').trim() : '',
-      date:   dateCol   ? String(r[dateCol]||'').trim()   : ''
+      date:   dateCol   ? String(r[dateCol]||'').trim()   : '',
+      channel
     };
+    // Also store under supplier-only key for backward compat (last write wins)
+    map[supplier] = map[key];
   }
   return map;
+}
+
+// ─── CHANNEL HELPERS ─────────────────────────────────────────────────────────
+function channelMatchesLine(lineChannel, activeChannel){
+  // lineChannel from sheet: 'arklow', 'capel street', 'both'
+  // activeChannel: 'arklow' or 'capel'
+  const lc = (lineChannel||'arklow').toLowerCase();
+  if(lc==='both') return true;
+  if(activeChannel==='capel') return lc.includes('capel');
+  return lc==='arklow' || lc==='' ;
+}
+
+function getChannelCSLines(){
+  return state.csLines.filter(l=>channelMatchesLine(l.channel, state.channel));
+}
+
+function getChannelPOMap(){
+  // Return a map keyed by supplier for the active channel
+  const ch = state.channel==='capel' ? 'capel street' : 'arklow';
+  const out = {};
+  for(const [key, val] of Object.entries(state.poStatusMap)){
+    if(!key.includes('||')) { out[key]=val; continue; } // legacy key
+    const [sup, chan] = key.split('||');
+    if(chan.includes(ch==='capel street'?'capel':'arklow')) out[sup]=val;
+  }
+  return out;
 }
 
 // ─── SUPPLIER GOVERNANCE ─────────────────────────────────────────────────────
@@ -1292,6 +1364,18 @@ function computeRow(row){
   const lead         = num(document.getElementById('leadDays').value)||0;
   const coverDays    = baseCover+lead;
   const isSeasonalMode = demandMode==='Seasonal';
+  const isCapel = state.channel==='capel';
+
+  // ── Channel-aware stock and demand ────────────────────────────────────────
+  if(isCapel){
+    row = {...row,
+      NetStock_Arklow: row.NetStock_CapelStreet||0,
+      QtySold_Online_Total_7d:   row.QtySold_Shop_CapelStreet_7d||0,
+      QtySold_Online_Total_30d:  row.QtySold_Shop_CapelStreet_30d||0,
+      QtySold_Online_Total_90d:  row.QtySold_Shop_CapelStreet_90d||0,
+      QtySold_Online_Total_180d: row.QtySold_Shop_CapelStreet_180d||0,
+    };
+  }
 
   const cls=classifySkuName(`${row.ItemTitle} ${row.SKU}`);
 
@@ -1370,7 +1454,7 @@ function computeRow(row){
   const coverStatus=effectiveDaily<=0?(stock>0?'No demand':'Out of Stock')
     :(daysOfCover<14?'Critical':(daysOfCover<30?'Low':(daysOfCover<=60?'Healthy':'High')));
   const status=stock<=0?'Out of Stock':(effectiveDaily>0?(Math.floor(stock/effectiveDaily)<14?'Critical':(Math.floor(stock/effectiveDaily)<28?'Low':'OK')):'No demand');
-  const capelSignal=row.QtySold_Online_CapelStreet_30d>0?`Capel Street online sales detected (${fmtInt(row.QtySold_Online_CapelStreet_30d)} units in the last 30 days).`:'';
+  const capelSignal=(!state.channel||state.channel==='arklow')&&row.QtySold_Online_CapelStreet_30d>0?`Capel Street online sales detected (${fmtInt(row.QtySold_Online_CapelStreet_30d)} units in the last 30 days).`:'';
   const ramp=hasRamp(row);
 
   const res={
@@ -1477,6 +1561,7 @@ function recompute(){
   for(const [sku, rows] of skuMap){
     if(rows.length===1){
       rows[0]._alternatives=[];
+      rows[0]._bestKnownCost=rows[0].SupplierCostPrice||0;
       deduped.push(rows[0]);
       continue;
     }
@@ -1497,10 +1582,18 @@ function recompute(){
       poRaw:state.poStatusMap[r.SupplierName]?.raw||''
     }));
     primary._alternatives=alternatives;
+    // Best known cost = lowest non-zero cost across ALL suppliers for this SKU
+    // Used for dead stock valuation so zero-cost suppliers don't corrupt the figure
+    const knownCosts=rows.map(r=>r.SupplierCostPrice||0).filter(c=>c>0);
+    primary._bestKnownCost=knownCosts.length>0?Math.min(...knownCosts):0;
     deduped.push(primary);
   }
 
   state.computedRows=deduped;
+
+  // ── Build global revenue rank map (all governed SKUs by 30D revenue) ────────
+  const rankSorted=[...deduped].sort((a,b)=>(b.Revenue_Online_Total_30d||0)-(a.Revenue_Online_Total_30d||0));
+  state.skuRankMap=new Map(rankSorted.map((r,i)=>[ r.SKU, i+1 ]));
   render();
   if(document.getElementById('tab-clearstock')?.classList.contains('active')) renderClearStock();
 }
@@ -1679,6 +1772,14 @@ function render(){
         ?`<span class="chip cs-req" title="Cannot omit CS-required lines">🔒</span>`
         :`<input type="checkbox" title="Untick to omit from PO export" ${isOmitted?'':'checked'} data-sku="${esc(r.SKU)}" class="omit-toggle">`;
 
+      // Rank badge
+      const rank=state.skuRankMap.get(r.SKU)||9999;
+      const rankBadge=rank<=100
+        ?`<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#fef08a;color:#713f12;font-size:11px;font-weight:900;text-align:center;white-space:normal">⭐<br>#${rank}</span>`
+        :rank<=500
+        ?`<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:800;text-align:center;white-space:normal">Top 500<br>#${rank}</span>`
+        :`<span style="color:#94a3b8;font-size:11px">#${rank}</span>`;
+
       // Signals cell — chips + short reason summary in one column
       const seasonalRule=detectSeasonalRule(r.ItemTitle);
       const hiddenSeasonal=getHiddenSeasonalSignal(r);
@@ -1698,7 +1799,8 @@ function render(){
 
       return `<tr style="${isOmitted?'opacity:.45':''}">
         <td style="white-space:nowrap;font-weight:700">${esc(r.SKU)}</td>
-        <td style="min-width:160px">${esc(r.ItemTitle)}</td>
+        <td style="width:60px;max-width:60px;text-align:center">${rankBadge}</td>
+        <td style="min-width:160px;white-space:normal;word-break:break-word">${esc(r.ItemTitle)}</td>
         <td style="min-width:260px;max-width:400px">
           <div class="chip-row" style="margin-bottom:5px">${chips.join('')}</div>
           <div class="reason">${r.reason}</div>
@@ -1706,7 +1808,7 @@ function render(){
         <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap">${fmtInt(r.buy)}</td>
         <td class="num">${omitBtn}</td>
         <td class="num ${coverCls}">${esc(r.coverStatus)}</td>
-        <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap;${r.stock<=0?'color:#dc2626':''}">${fmtInt(r.stock)}${r.AvailableQty_CapelStreet>0?`<div style="font-size:11px;font-weight:600;color:#64748b;margin-top:2px">CS: ${fmtInt(r.AvailableQty_CapelStreet)}</div>`:''}</td>
+        <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap;${r.stock<=0?'color:#dc2626':''}">${fmtInt(r.stock)}${state.channel==='capel'?`<div style="font-size:10px;font-weight:600;color:#7c3aed;margin-top:2px">Capel St</div>`:(r.AvailableQty_CapelStreet>0?`<div style="font-size:11px;font-weight:600;color:#64748b;margin-top:2px">CS: ${fmtInt(r.AvailableQty_CapelStreet)}</div>`:'')}</td>
         <td class="num">${fmtInt(r.demandQty)}</td>
         <td class="num">${momChip}</td>
         <td class="num">${fmt1(r.adjustedDaily)}</td>
@@ -1887,7 +1989,7 @@ async function loadGovernanceFeeds(){
   } else {
     msgs.push('Monthly history: no URL — using profile estimates for Seasonal mode');
   }
-  state.governedSuppliers=buildGovernedSet(state.csLines,state.poStatusMap);
+  state.governedSuppliers=buildGovernedSet(getChannelCSLines(), getChannelPOMap());
   const govMsg = state.governedSuppliers.size > 0
     ? `✅ Governance active · ${msgs.join(' · ')} · ${state.governedSuppliers.size} governed suppliers`
     : `⚠️ Governance feeds not reachable · ${msgs.join(' · ')} · showing all suppliers`;
@@ -1916,7 +2018,7 @@ async function processRawRows(parsedRaw, sourceName){
   if(normalised.length===0){setStatus('❌ No rows found in CSV.',true);return;}
 
   state.rawRows=normalised;
-  const withCS=mergeCSIntoRows([...normalised],state.csLines);
+  const withCS=mergeCSIntoRows([...normalised],getChannelCSLines());
   const governed=applyGovernance(withCS);
   state.governedRows=governed;
 
@@ -2076,7 +2178,27 @@ function bindEvents(){
       render();
     });
   });
-  // ── Tab switching ──────────────────────────────────────────────────────────
+  // ── Channel toggle ─────────────────────────────────────────────────────────
+  ['channelArklow','channelCapel'].forEach(id=>{
+    const btn=byId(id);
+    if(!btn) return;
+    btn.addEventListener('click',()=>{
+      state.channel=id==='channelCapel'?'capel':'arklow';
+      byId('channelArklow').classList.toggle('active', state.channel==='arklow');
+      byId('channelCapel').classList.toggle('active', state.channel==='capel');
+      const note=byId('channelNote');
+      if(note) note.textContent=state.channel==='capel'
+        ?'Stock basis: NetStock_CapelStreet · Demand: Vend shop sales'
+        :'Stock basis: NetStock_Arklow · Demand: Magento online orders';
+      const poBtn=byId('poExportBtn');
+      if(poBtn) poBtn.textContent=state.channel==='capel'?'Export PO (Capel Street)':'Export PO';
+      const guide=byId('guidanceText');
+      if(guide) guide.textContent=state.channel==='capel'
+        ?'Stock basis = NetStock_CapelStreet · Demand = Vend shop sales · CS lines filtered to Capel Street channel'
+        :'Stock basis = NetStock_Arklow only · Capel demand = visibility only · use Exclude Healthy or View buy risks to focus on what needs ordering';
+      if(state.rawRows.length) recompute();
+    });
+  });
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
