@@ -478,8 +478,8 @@
         <thead>
           <tr>
             <th style="min-width:90px">SKU</th>
-            <th class="num" title="Revenue rank across all governed SKUs (Top 500 highlighted)">Rank</th>
-            <th style="width:160px;max-width:160px">Item</th>
+            <th style="width:60px;max-width:60px">Rank</th>
+            <th style="min-width:160px">Item</th>
             <th style="min-width:260px">Reason / Signals</th>
             <th class="num">Buy</th>
             <th class="num">Omit</th>
@@ -1712,8 +1712,8 @@ function render(){
 
       return `<tr style="${isOmitted?'opacity:.45':''}">
         <td style="white-space:nowrap;font-weight:700">${esc(r.SKU)}</td>
-        <td class="num">${rankBadge}</td>
-        <td style="width:160px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.ItemTitle)}">${esc(r.ItemTitle)}</td>
+        <td style="width:60px;max-width:60px;text-align:center">${rankBadge}</td>
+        <td style="min-width:160px;white-space:normal;word-break:break-word">${esc(r.ItemTitle)}</td>
         <td style="min-width:260px;max-width:400px">
           <div class="chip-row" style="margin-bottom:5px">${chips.join('')}</div>
           <div class="reason">${r.reason}</div>
