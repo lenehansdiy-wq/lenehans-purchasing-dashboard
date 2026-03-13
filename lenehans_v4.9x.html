@@ -581,7 +581,7 @@
         <button id="xfrExportBtn" class="secondary" style="margin-left:auto;font-size:12px">Export transfers CSV</button>
       </div>
       <div style="font-size:12px;color:#64748b;margin-bottom:12px">
-        Transfer logic: source must be healthy (>56d cover) · destination must be slow/critical · qty = exactly what destination needs to reach 56-day target · SKUs skipped if on-order at destination already covers the gap
+        Transfer logic: source must be healthy (>56d cover) · destination must be slow/critical · qty = what destination needs to reach 56-day target, capped at 75% of source stock · SKUs skipped if on-order at destination already covers the gap
       </div>
       <div id="xfrContainer"><div class="cs-no-data">Load data to see stock transfer recommendations.</div></div>
     </div>
@@ -652,8 +652,8 @@ function computeTransfers(){
       // Skip if on-order at destination already covers the gap
       if(ooCS >= csNeedUnits) continue;
       const csStillNeeded = csNeedUnits - ooCS;
-      // Transfer exactly what destination needs (capped at what source actually has)
-      const qty = Math.min(akStock, csStillNeeded);
+      // Transfer up to 75% of source stock (never strip source bare)
+      const qty = Math.min(Math.floor(akStock * 0.75), csStillNeeded);
       if(qty >= XFR_MIN_QTY){
         toCapel.push({
           SKU: r.SKU, ItemTitle: r.ItemTitle, SupplierName: r.SupplierName,
@@ -683,8 +683,8 @@ function computeTransfers(){
       // Skip if on-order at destination already covers the gap
       if(ooAK >= akNeedUnits) continue;
       const akStillNeeded = akNeedUnits - ooAK;
-      // Transfer exactly what destination needs (capped at what source actually has)
-      const qty = Math.min(csStock, akStillNeeded);
+      // Transfer up to 75% of source stock (never strip source bare)
+      const qty = Math.min(Math.floor(csStock * 0.75), akStillNeeded);
       if(qty >= XFR_MIN_QTY){
         toArklow.push({
           SKU: r.SKU, ItemTitle: r.ItemTitle, SupplierName: r.SupplierName,
