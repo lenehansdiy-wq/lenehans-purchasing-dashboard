@@ -512,7 +512,11 @@
         <div class="cs-divider"></div>
         <div class="cs-summary-stat"><div class="val" id="csSlowCount">—</div><div class="lbl">Slow SKUs (0 sales 30D)</div></div>
         <div class="cs-divider"></div>
-        <div class="cs-summary-stat"><div class="val red" id="csStockValue">—</div><div class="lbl">Est. stock value tied up</div></div>
+        <div class="cs-summary-stat"><div class="val red" id="csStockValue">—</div><div class="lbl">Est. cost value (known prices only)</div></div>
+        <div class="cs-divider"></div>
+        <div class="cs-summary-stat"><div class="val" id="csRetailValue" style="color:#7c3aed">—</div><div class="lbl">Est. retail value @ 50% margin</div></div>
+        <div class="cs-divider"></div>
+        <div class="cs-summary-stat"><div class="val" id="csMissingCost" style="color:#94a3b8">—</div><div class="lbl">SKUs with no cost price</div></div>
       </div>
       <div class="cs-filter-bar">
         <span style="font-size:12px;font-weight:700;color:#64748b">Show:</span>
@@ -582,7 +586,7 @@ function suggestDiscount(costPrice, currentRevDaily, stock){
 function generateCampaign(theme, skus, filter){
   const deadCount=skus.filter(r=>r._slowClass==='dead').length;
   const totalStock=skus.reduce((s,r)=>s+(r.stock||0),0);
-  const totalValue=skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
+  const totalValue=skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
   const season=new Date().getMonth();
   const isSummer=season>=3&&season<=8;
 
@@ -630,11 +634,14 @@ function renderClearStock(){
   const deadAll=allSlow.filter(x=>x.cls==='dead');
   const staleAll=allSlow.filter(x=>x.cls==='stale');
   const slowAll=allSlow.filter(x=>x.cls==='slow');
-  const totalVal=allSlow.reduce((s,x)=>s+((x.r.stock||0)*(x.r.SupplierCostPrice||0)),0);
+  const totalVal=allSlow.reduce((s,x)=>s+((x.r.stock||0)*(x.r._bestKnownCost||0)),0);
+  const missingCost=allSlow.filter(x=>!(x.r._bestKnownCost>0)).length;
   document.getElementById('csDeadCount').textContent=fmtInt(deadAll.length);
   document.getElementById('csStaleCount').textContent=fmtInt(staleAll.length);
   document.getElementById('csSlowCount').textContent=fmtInt(slowAll.length);
   document.getElementById('csStockValue').textContent=totalVal>0?`€${fmtInt(totalVal)}`:'N/A';
+  document.getElementById('csRetailValue').textContent=totalVal>0?`€${fmtInt(totalVal/0.5)}`:'N/A';
+  document.getElementById('csMissingCost').textContent=fmtInt(missingCost);
 
   if(!slowRows.length){
     container.innerHTML='<div class="cs-no-data">No slow movers found for the selected filter.</div>';
@@ -650,8 +657,8 @@ function renderClearStock(){
   }
   // Sort themes by total stock value desc
   const themes=[...themeMap.values()].sort((a,b)=>{
-    const va=a.skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
-    const vb=b.skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
+    const va=a.skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
+    const vb=b.skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
     return vb-va;
   });
 
@@ -661,11 +668,11 @@ function renderClearStock(){
     skus.sort((a,b)=>{
       const order={dead:0,stale:1,slow:2};
       if(order[a._slowClass]!==order[b._slowClass]) return order[a._slowClass]-order[b._slowClass];
-      return ((b.stock||0)*(b.SupplierCostPrice||0))-((a.stock||0)*(a.SupplierCostPrice||0));
+      return ((b.stock||0)*(b._bestKnownCost||0))-((a.stock||0)*(a._bestKnownCost||0));
     });
     const deadCount=skus.filter(r=>r._slowClass==='dead').length;
     const staleCount=skus.filter(r=>r._slowClass==='stale').length;
-    const themeValue=skus.reduce((s,r)=>s+((r.stock||0)*(r.SupplierCostPrice||0)),0);
+    const themeValue=skus.reduce((s,r)=>s+((r.stock||0)*(r._bestKnownCost||0)),0);
     const campaign=generateCampaign(theme,skus,filter);
     const top5=skus.slice(0,5);
 
@@ -700,14 +707,19 @@ function renderClearStock(){
           </tr></thead>
           <tbody>
           ${skus.map(r=>{
-            const val=(r.stock||0)*(r.SupplierCostPrice||0);
-            const disc=suggestDiscount(r.SupplierCostPrice, r.Revenue_Online_Total_30d/30, r.stock||0);
+            const val=(r.stock||0)*(r._bestKnownCost||0);
+            const disc=suggestDiscount(r._bestKnownCost, r.Revenue_Online_Total_30d/30, r.stock||0);
+            const costDisplay=r._bestKnownCost>0
+              ? (r._bestKnownCost!==r.SupplierCostPrice&&r.SupplierCostPrice>0
+                  ? `<span title="Best known cost across suppliers">€${fmt1(r._bestKnownCost)}</span>`
+                  : `€${fmt1(r._bestKnownCost)}`)
+              : '—';
             return `<tr class="${r._slowClass}">
               <td style="font-family:monospace;font-size:11px;font-weight:700;color:#1e40af">${esc(r.SKU)}</td>
               <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.ItemTitle)}">${esc(r.ItemTitle)}</td>
               <td><span class="cs-badge ${r._slowClass}">${r._slowClass==='dead'?'🔴 Dead 180D':r._slowClass==='stale'?'🟠 Stale 90D':'🟡 Slow 30D'}</span></td>
               <td class="r">${fmtInt(r.stock||0)}</td>
-              <td class="r">${r.SupplierCostPrice>0?'€'+fmt1(r.SupplierCostPrice):'—'}</td>
+              <td class="r">${costDisplay}</td>
               <td class="r">${val>0?'€'+fmtInt(val):'—'}</td>
               <td class="r"><span class="cs-disc ${disc.cls}">${disc.label}</span></td>
             </tr>`;
@@ -1479,6 +1491,7 @@ function recompute(){
   for(const [sku, rows] of skuMap){
     if(rows.length===1){
       rows[0]._alternatives=[];
+      rows[0]._bestKnownCost=rows[0].SupplierCostPrice||0;
       deduped.push(rows[0]);
       continue;
     }
@@ -1499,6 +1512,10 @@ function recompute(){
       poRaw:state.poStatusMap[r.SupplierName]?.raw||''
     }));
     primary._alternatives=alternatives;
+    // Best known cost = lowest non-zero cost across ALL suppliers for this SKU
+    // Used for dead stock valuation so zero-cost suppliers don't corrupt the figure
+    const knownCosts=rows.map(r=>r.SupplierCostPrice||0).filter(c=>c>0);
+    primary._bestKnownCost=knownCosts.length>0?Math.min(...knownCosts):0;
     deduped.push(primary);
   }
 
