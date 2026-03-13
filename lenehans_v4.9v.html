@@ -1688,9 +1688,9 @@ function render(){
       // Rank badge
       const rank=state.skuRankMap.get(r.SKU)||9999;
       const rankBadge=rank<=100
-        ?`<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#fef08a;color:#713f12;font-size:11px;font-weight:900;white-space:nowrap">⭐ #${rank}</span>`
+        ?`<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#fef08a;color:#713f12;font-size:11px;font-weight:900;text-align:center;white-space:normal">⭐<br>#${rank}</span>`
         :rank<=500
-        ?`<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:800;white-space:nowrap">Top 500 #${rank}</span>`
+        ?`<span style="display:inline-block;padding:2px 6px;border-radius:10px;background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:800;text-align:center;white-space:normal">Top 500<br>#${rank}</span>`
         :`<span style="color:#94a3b8;font-size:11px">#${rank}</span>`;
 
       // Signals cell — chips + short reason summary in one column
