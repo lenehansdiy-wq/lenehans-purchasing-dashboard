@@ -1866,6 +1866,7 @@ function computeRow(row){
 
 // ─── SUPPLIER SUMMARY ────────────────────────────────────────────────────────
 function supplierSummaryRows(rows){
+  const chPoMap = getChannelPOMap();
   const map=new Map();
   for(const r of rows){
     const k=r.SupplierName||'(Blank supplier)';
@@ -1933,6 +1934,7 @@ function getFilteredRows(){
 }
 
 function recompute(){
+  const chPoMap = getChannelPOMap();
   const allComputed=state.governedRows.map(computeRow);
 
   // ── Deduplicate by SKU: keep lowest cost supplier, attach alternatives ──────
@@ -2130,12 +2132,10 @@ function render(){
   document.getElementById('modeBadge').textContent=`Mode: ${mode}`;
   document.getElementById('monthBadge').textContent=`Month: ${monthLabel()}`;
   document.getElementById('mSuppliers').textContent=fmtInt(new Set(state.computedRows.map(r=>r.SupplierName||'(Blank supplier)')).size);
-  // Channel-correct PO map — used everywhere in this render pass
-  const chPoMap = getChannelPOMap();
   const rows=getFilteredRows();
   document.getElementById('mCritical').textContent=fmtInt(rows.filter(r=>['Critical','Out of Stock'].includes(r.status)).length);
   renderActionNow(rows);
-  renderOrderPreview(rows, chPoMap);
+  renderOrderPreview(rows);
 
   const supplierTable=document.getElementById('supplierTable');
   const detailTable=document.getElementById('detailTable');
