@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.3 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.4 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -395,7 +395,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.3 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.4 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -540,6 +540,8 @@
     <div class="active-bar">
       <span class="pill" id="modeBadge">Mode: 30D</span>
       <span class="pill" id="monthBadge">Month</span>
+      <span id="fallbackBadge90" style="display:none" class="pill" style="background:#fff7ed;color:#c2410c;border:1.5px solid #f97316">90D active</span>
+      <span id="fallbackBadge180" style="display:none" class="pill" style="background:#fdf4ff;color:#7e22ce;border:1.5px solid #a855f7">180D active</span>
       <span class="muted" id="resultCount">0 suppliers</span>
       <button id="backBtn" class="secondary" style="display:none">← Back to suppliers</button>
       <span class="muted" id="activeSupplierLabel"></span>
@@ -598,7 +600,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.3 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.4 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -2040,7 +2042,10 @@ function renderOrderPreview(rows, chPoMap){
   const poEl=document.getElementById('opPOStatus');
   if(po){
     const cls=po.isDone?'po-done':'po-pending';
-    poEl.innerHTML=`PO Status: <span class="chip ${cls}">${esc(po.raw)}</span>${po.person?' · '+esc(po.person):''}${po.date?' · '+esc(po.date):''}`;
+    const isCapel=(po.channel||'').toLowerCase().includes('capel');
+    const personPart=(!isCapel&&po.person)?' · '+esc(po.person):'';
+    const datePart=po.date?' · '+esc(po.date):'';
+    poEl.innerHTML=`PO Status: <span class="chip ${cls}">${esc(po.raw)}</span>${personPart}${datePart}`;
   }else{
     poEl.innerHTML='PO Status: <span class="chip po-pending">No PO on record</span>';
   }
@@ -2155,6 +2160,16 @@ function render(){
   document.getElementById('mMode').textContent=mode;
   document.getElementById('modeBadge').textContent=`Mode: ${mode}`;
   document.getElementById('monthBadge').textContent=`Month: ${monthLabel()}`;
+  // Show active fallback badges in toolbar when inside a supplier
+  const _fb90on  = document.getElementById('fallback90Btn')?.dataset.active==='true';
+  const _fb180on = document.getElementById('fallback180Btn')?.dataset.active==='true';
+  const _supOvr  = state.activeSupplier ? getSupplierFallback(state.activeSupplier) : null;
+  const _show90  = state.activeSupplier && (_supOvr==='90D'  || (!_supOvr && _fb90on));
+  const _show180 = state.activeSupplier && (_supOvr==='180D' || (!_supOvr && _fb180on));
+  const _b90=document.getElementById('fallbackBadge90');
+  const _b180=document.getElementById('fallbackBadge180');
+  if(_b90)  { _b90.style.display  = _show90  ? 'inline-flex' : 'none'; }
+  if(_b180) { _b180.style.display = _show180 ? 'inline-flex' : 'none'; }
   document.getElementById('mSuppliers').textContent=fmtInt(new Set(state.computedRows.map(r=>r.SupplierName||'(Blank supplier)')).size);
   const rows=getFilteredRows();
   document.getElementById('mCritical').textContent=fmtInt(rows.filter(r=>['Critical','Out of Stock'].includes(r.status)).length);
@@ -2280,7 +2295,12 @@ function render(){
     document.getElementById('supplierTbody').innerHTML=summary.map((s,idx)=>{
       const po=s.poStatus;
       const poChip=po
-        ?`<span class="chip ${po.isDone?'po-done':'po-pending'}">${esc(po.raw)}${po.person?' · '+esc(po.person):''}${po.date?' · '+esc(po.date):''}</span>`
+        ?(()=>{
+          const isCapel=(s.poStatus?.channel||'').toLowerCase().includes('capel');
+          const personPart=(!isCapel&&po.person)?' · '+esc(po.person):'';
+          const datePart=po.date?' · '+esc(po.date):'';
+          return `<span class="chip ${po.isDone?'po-done':'po-pending'}">${esc(po.raw)}${personPart}${datePart}</span>`;
+        })()
         :`<span class="chip po-pending">No PO</span>`;
       const health = s.orderHealth || {score:0,label:'—',cls:'conf-low'};
       const conf   = s.avgConfidence || {score:60,label:'Med',cls:'conf-med'};
