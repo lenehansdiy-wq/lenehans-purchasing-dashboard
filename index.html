@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.6 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.7 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -395,7 +395,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.6 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.7 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -600,7 +600,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.6 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.7 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1417,8 +1417,7 @@ function parsePOFeed(rows){
       map[csKey] = makeEntry(statusCS, dateCS, '', 'capel street');
     }
 
-    // Backward compat key — prefer Arklow status for supplier-only lookups
-    if(!map[supplier] || statusAK) map[supplier] = map[akKey];
+    // No legacy supplier-only key stored — channel-specific keys are always used
   }
   return map;
 }
@@ -1438,13 +1437,22 @@ function getChannelCSLines(){
 }
 
 function getChannelPOMap(){
-  // Return a map keyed by supplier for the active channel
+  // Return a map keyed by supplier for the active channel only.
+  // Always prefer the channel-specific key (supplier||channel) over the
+  // legacy supplier-only key — otherwise Arklow data bleeds into Capel view.
   const ch = state.channel==='capel' ? 'capel street' : 'arklow';
+  const chMatch = ch==='capel street' ? 'capel' : 'arklow';
   const out = {};
+  // First pass: channel-specific keys (supplier||channel) — these win
   for(const [key, val] of Object.entries(state.poStatusMap)){
-    if(!key.includes('||')) { out[key]=val; continue; } // legacy key
+    if(!key.includes('||')) continue; // skip legacy keys in first pass
     const [sup, chan] = key.split('||');
-    if(chan.includes(ch==='capel street'?'capel':'arklow')) out[sup]=val;
+    if(chan.includes(chMatch)) out[sup]=val;
+  }
+  // Second pass: legacy keys only fill gaps (supplier not found in first pass)
+  for(const [key, val] of Object.entries(state.poStatusMap)){
+    if(key.includes('||')) continue;
+    if(!out[key]) out[key]=val; // only if no channel-specific entry exists
   }
   return out;
 }
