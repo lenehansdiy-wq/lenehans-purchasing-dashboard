@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.9 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.11 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -104,10 +104,12 @@
 
     /* ── Collapsible watchlist ──────────────────────────────────────── */
     .wl-header{display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;
-      background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;margin:10px 0;
+      background:#1e3a5f;border:1.5px solid #1e3a5f;border-radius:8px;margin:10px 0;
       user-select:none}
-    .wl-header:hover{background:#f1f5f9}
-    .wl-header h3{margin:0;font-size:14px}
+    .wl-header:hover{background:#1748c0;border-color:#1748c0}
+    .wl-header h3{margin:0;font-size:14px;color:#fff}
+    .wl-header .small{color:#94d2ff!important}
+    .wl-toggle{color:#fff!important;font-weight:800!important}
     .wl-toggle{margin-left:auto;font-size:12px;color:#64748b;font-weight:600}
     .wl-body{display:none}
     .wl-body.open{display:block}
@@ -397,7 +399,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.9 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.11 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -517,8 +519,8 @@
   <!-- Watchlist: collapsible -->
   <div id="wlHeader" class="wl-header" onclick="toggleWatchlist()">
     <h3>🏆 Top 500 SKU Watchlist</h3>
-    <span id="actionNowSummary" class="small" style="color:#64748b"></span>
-    <span class="wl-toggle" id="wlToggleLabel">▼ show</span>
+    <span id="actionNowSummary" class="small"></span>
+    <span class="wl-toggle" id="wlToggleLabel">▼ Click to show supplier cards</span>
   </div>
   <div id="wlBody" class="wl-body">
     <div id="actionNowGrid"></div>
@@ -604,7 +606,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.9 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.11 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1235,7 +1237,7 @@ function toggleWatchlist(){
   const lbl=document.getElementById('wlToggleLabel');
   if(!body||!lbl) return;
   const open=body.classList.toggle('open');
-  lbl.textContent=open?'▲ hide':'▼ show';
+  lbl.textContent=open?'▲ Hide supplier cards':'▼ Click to show supplier cards';
 }
 
 function parseCSV(text){
@@ -1810,17 +1812,20 @@ function getTransferFlag(r){
   const TARGET_DAYS = 56;
   const isCapel = state.channel === 'capel';
 
-  // Stock at the OTHER location
+  // IMPORTANT: In Capel mode, computeRow remaps NetStock_Arklow → Capel value.
+  // Always use the RAW fields (AQty_AK/OOQty_AK, AQty_CS/OOQty_CS) which are never remapped.
   const otherStock = isCapel
-    ? (r.NetStock_Arklow || r.AQty_AK || 0)
-    : (r.NetStock_CapelStreet || r.AQty_CS || 0);
+    ? Math.max(0, (r.AQty_AK||0) - (r.OnOrderQty_Arklow||0))   // true Arklow net stock
+    : Math.max(0, (r.AQty_CS||0) - (r.OnOrderQty_CapelStreet||0)); // true Capel net stock
 
   const otherLabel = isCapel ? 'Arklow' : 'Capel St';
 
   // Daily demand at the OTHER location
   const otherDaily = isCapel
-    ? ((r.QtySold_Online_Total_30d || 0) / 30)   // Arklow online demand
-    : ((r.QtySold_Shop_CapelStreet_30d || 0) / 30); // Capel shop demand
+    ? ((r.QtySold_Online_Arklow_90d||0) > 0
+        ? (r.QtySold_Online_Arklow_90d||0) / 90   // use 90D Arklow if available
+        : (r.QSold_OnAK30||0) / 30)               // fallback to 30D
+    : ((r.QtySold_Shop_CapelStreet_30d||0) / 30); // Capel shop demand
 
   if(otherStock <= 0) return null;
 
@@ -2343,8 +2348,11 @@ function render(){
         <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap;${r.stock<=0?'color:#dc2626':''}">${fmtInt(r.stock)}${state.channel==='capel'?`<div style="font-size:10px;font-weight:600;color:#7c3aed;margin-top:2px">Capel St</div>`:(r.AvailableQty_CapelStreet>0?`<div style="font-size:11px;font-weight:600;color:#64748b;margin-top:2px">CS: ${fmtInt(r.AvailableQty_CapelStreet)}</div>`:'')}</td>
         <td class="num" style="white-space:nowrap">${(()=>{
           const xfr = getTransferFlag(r);
-          if(!xfr) return `<span style="font-size:13px;font-weight:700">${fmtInt(xfr===null?(state.channel==='capel'?r.NetStock_Arklow||r.AQty_AK||0:r.NetStock_CapelStreet||r.AQty_CS||0):0)}</span>`;
-          const otherStockVal = state.channel==='capel'?(r.NetStock_Arklow||r.AQty_AK||0):(r.NetStock_CapelStreet||r.AQty_CS||0);
+          // Use raw AQty fields — NetStock_Arklow is remapped in Capel mode
+          const otherStockVal = state.channel==='capel'
+            ? Math.max(0,(r.AQty_AK||0)-(r.OnOrderQty_Arklow||0))
+            : Math.max(0,(r.AQty_CS||0)-(r.OnOrderQty_CapelStreet||0));
+          if(!xfr) return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>`;
           return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>
             <div class="xfr-flag surplus" title="Surplus at ${xfr.otherLabel} — ${xfr.otherCoverDays}d cover. Up to ${fmtInt(xfr.qty)} units available to transfer.">⇄ Transfer ${fmtInt(xfr.qty)}</div>`;
         })()}</td>
