@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.11 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.15 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -399,7 +399,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.11 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.15 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -494,6 +494,7 @@
     <button id="clearRiskFiltersBtn" class="secondary">Clear risk filters</button>
     <button id="exportBtn" class="secondary">Export CSV</button>
     <button id="poExportBtn" class="secondary">Export PO</button>
+    <button id="xfrPickBtn" class="secondary" onclick="exportTransferPickingNote()" title="Export transfer picking note — only visible when inside a supplier" style="display:none">⇄ Transfer Note</button>
   </div>
 
   <!-- Slim metrics + legend strip -->
@@ -590,8 +591,8 @@
             <th class="num">Buy</th>
             <th class="num">Omit</th>
             <th class="num" title="Cover status and days of stock remaining">Cover</th>
-            <th class="num" title="Net stock at Arklow">Stock</th>
-            <th class="num" title="Stock at the other location + transfer opportunity">Other loc.</th>
+            <th class="num" id="stockColHdr" title="Net stock at current channel location">Stock</th>
+            <th class="num" id="otherLocColHdr" title="Stock at the other location + transfer opportunity">Other loc.</th>
             <th class="num" title="Demand qty in selected period">Demand</th>
             <th class="num" title="Demand momentum: 7D vs 30D run-rate">Trend</th>
             <th class="num" title="Adjusted daily demand after seasonal multiplier">Daily</th>
@@ -606,7 +607,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.11 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.15 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -664,6 +665,7 @@
   <div class="spb-supplier" id="spbSupplierName">—</div>
   <div class="spb-info" id="spbInfo"></div>
   <button onclick="exportPO()">📄 Export PO</button>
+  <button onclick="exportTransferPickingNote()" style="background:#d97706" title="Export transfer picking note for this supplier">⇄ Transfer Note</button>
   <button class="spb-back" onclick="document.getElementById('backBtn').click()">← Back to suppliers</button>
 </div>
 
@@ -1336,6 +1338,8 @@ function normalizeRow(r){
     QtySold_Shop_CapelStreet_90d: n('QtySold_Shop_CapelStreet_90d')||n('QSold_ShCS90'),
     QtySold_Shop_CapelStreet_180d:n('QtySold_Shop_CapelStreet_180d')||n('QSold_ShCS180'),
     Revenue_Shop_CapelStreet_30d: n('Revenue_Shop_CapelStreet_30d')||n('Rev_ShCS30'),
+    BinRack_AK: String(r.BinRack_AK||'').trim(),
+    BinRack_CS: String(r.BinRack_CS||'').trim(),
     SupplierCostPrice:num(r.SupplierCostPrice),
     SupplierMinOrder:num(r.SupplierMinOrder),
     SupplierPackSize:Math.max(1,num(r.SupplierPackSize)||1),
@@ -1812,38 +1816,52 @@ function getTransferFlag(r){
   const TARGET_DAYS = 56;
   const isCapel = state.channel === 'capel';
 
-  // IMPORTANT: In Capel mode, computeRow remaps NetStock_Arklow → Capel value.
-  // Always use the RAW fields (AQty_AK/OOQty_AK, AQty_CS/OOQty_CS) which are never remapped.
+  // Use raw AvailableQty and OnOrderQty fields — never remapped by computeRow
+  // AvailableQty_Arklow / AvailableQty_CapelStreet are the correct raw field names
   const otherStock = isCapel
-    ? Math.max(0, (r.AQty_AK||0) - (r.OnOrderQty_Arklow||0))   // true Arklow net stock
-    : Math.max(0, (r.AQty_CS||0) - (r.OnOrderQty_CapelStreet||0)); // true Capel net stock
+    ? Math.max(0, (r.AvailableQty_Arklow||0) - (r.OnOrderQty_Arklow||0))
+    : Math.max(0, (r.AvailableQty_CapelStreet||0) - (r.OnOrderQty_CapelStreet||0));
 
-  const otherLabel = isCapel ? 'Arklow' : 'Capel St';
+  const otherLabel = isCapel ? 'Arklow' : 'Capel Street';
 
   // Daily demand at the OTHER location
+  // Arklow: use QSold_OnAK30 (online 30D split) — field is stored as QtySold_Online_Total_30d before remap
+  // Capel: use QtySold_Shop_CapelStreet_30d (Vend POS demand)
   const otherDaily = isCapel
-    ? ((r.QtySold_Online_Arklow_90d||0) > 0
-        ? (r.QtySold_Online_Arklow_90d||0) / 90   // use 90D Arklow if available
-        : (r.QSold_OnAK30||0) / 30)               // fallback to 30D
-    : ((r.QtySold_Shop_CapelStreet_30d||0) / 30); // Capel shop demand
+    ? (r.QtySold_Online_Arklow_90d||0) > 0
+        ? (r.QtySold_Online_Arklow_90d||0) / 90
+        : (r.QtySold_Online_CapelStreet_30d > 0   // use any available Arklow proxy
+            ? (r.QtySold_Online_Total_30d||0) / 30  // pre-remap total = Arklow in Arklow mode
+            : 0)
+    : (r.QtySold_Shop_CapelStreet_30d||0) / 30;
 
   if(otherStock <= 0) return null;
 
-  // How many days cover does the other location have?
+  // Days cover at other location
   const otherCoverDays = otherDaily > 0 ? otherStock / otherDaily : 9999;
 
-  // Only flag if other location has MORE than target cover (it has surplus)
+  // Only flag if other location has surplus (more than target cover)
   if(otherCoverDays <= TARGET_DAYS) return null;
 
-  // How much is surplus (above target)?
-  const otherTarget = Math.ceil(otherDaily * TARGET_DAYS);
-  const surplus = otherStock - otherTarget;
+  // How much does the DESTINATION need to reach 56-day cover?
+  const destStock = isCapel
+    ? Math.max(0,(r.AvailableQty_CapelStreet||0)-(r.OnOrderQty_CapelStreet||0))
+    : Math.max(0,(r.AvailableQty_Arklow||0)-(r.OnOrderQty_Arklow||0));
+  const destDaily = isCapel
+    ? (r.QtySold_Shop_CapelStreet_30d||0)/30
+    : (r.QtySold_Online_Total_30d||0)/30;
+  const destTarget  = Math.ceil(destDaily * TARGET_DAYS);
+  const destNeeds   = Math.max(0, destTarget - destStock);
 
-  // Transfer up to 75% of other stock, capped at surplus
-  const transferQty = Math.min(Math.floor(otherStock * 0.75), surplus);
+  // How much can Arklow/CS spare? Must keep its own 56-day cover
+  const otherTarget = Math.ceil(otherDaily * TARGET_DAYS);
+  const otherSurplus = Math.max(0, otherStock - otherTarget);
+
+  // Transfer = what destination needs, capped at what source can spare
+  const transferQty = Math.min(destNeeds, otherSurplus);
   if(transferQty < 1) return null;
 
-  return { qty: transferQty, otherStock, otherLabel, otherCoverDays: Math.round(otherCoverDays) };
+  return { qty: transferQty, otherStock, otherSurplus, otherTarget, otherLabel, otherCoverDays: Math.round(otherCoverDays), destNeeds };
 }
 
 // ─── CORE COMPUTE ────────────────────────────────────────────────────────────
@@ -2128,7 +2146,7 @@ function renderOrderPreview(rows, chPoMap){
     if(xfrRows.length>0){
       const isCapel = state.channel==='capel';
       xfrEl.style.display='block';
-      xfrEl.innerHTML=`⇄ <strong>${xfrRows.length} SKU${xfrRows.length>1?'s':''}</strong> have surplus stock at ${isCapel?'Arklow':'Capel St'} — up to <strong>${fmtInt(xfrUnits)} units</strong> could be transferred before ordering. <span style="color:#92400E">Check transfers tab first.</span>`;
+      const fromLoc=isCapel?'Arklow':'Capel Street';xfrEl.innerHTML=`⇄ <strong>${xfrRows.length} SKU${xfrRows.length>1?'s':''}</strong> have surplus stock at <strong>${fromLoc}</strong> — up to <strong>${fmtInt(xfrUnits)} units</strong> could be transferred from ${fromLoc} before ordering. <span style="color:#92400E">Check transfers tab first.</span>`;
     } else {
       xfrEl.style.display='none';
     }
@@ -2281,6 +2299,9 @@ function render(){
     supplierTable.style.display='none';detailTable.style.display='table';backBtn.style.display='inline-flex';
     activeLabel.textContent=`Supplier: ${state.activeSupplier}`;
     // Show sticky PO bar
+    // Show transfer pick note button only when inside a supplier that has transfers
+    const _xfrBtn=document.getElementById('xfrPickBtn');
+    if(_xfrBtn) _xfrBtn.style.display=state.activeSupplier?'inline-flex':'none';
     const spb=document.getElementById('stickyPoBar');
     const spbName=document.getElementById('spbSupplierName');
     const spbInfo=document.getElementById('spbInfo');
@@ -2290,6 +2311,12 @@ function render(){
     const buySkus=rows.filter(r=>r.buy>0).length;
     if(spbInfo) spbInfo.textContent=`${buySkus} SKUs · ${fmtInt(buyUnits)} units to order`;
     document.getElementById('resultCount').textContent=`${fmtInt(rows.length)} SKUs`;
+    // Update column headers to reflect current channel
+    const _isCapel = state.channel==='capel';
+    const _sh = document.getElementById('stockColHdr');
+    const _oh = document.getElementById('otherLocColHdr');
+    if(_sh) _sh.textContent = _isCapel ? 'CS Stock' : 'AK Stock';
+    if(_oh) { _oh.textContent = _isCapel ? 'Arklow Stock' : 'Capel St Stock'; _oh.title = _isCapel ? 'Arklow net stock — transfer opportunity if surplus' : 'Capel Street net stock — transfer opportunity if surplus'; }
     document.getElementById('mRows').textContent=fmtInt(rows.length);
     document.getElementById('mBuy').textContent=fmtInt(rows.reduce((s,r)=>s+r.buy,0));
     document.getElementById('detailTbody').innerHTML=rows.sort((a,b)=>{
@@ -2345,16 +2372,16 @@ function render(){
         <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap">${fmtInt(r.buy)}</td>
         <td class="num">${omitBtn}</td>
         <td class="num ${coverCls}">${esc(r.coverStatus)}</td>
-        <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap;${r.stock<=0?'color:#dc2626':''}">${fmtInt(r.stock)}${state.channel==='capel'?`<div style="font-size:10px;font-weight:600;color:#7c3aed;margin-top:2px">Capel St</div>`:(r.AvailableQty_CapelStreet>0?`<div style="font-size:11px;font-weight:600;color:#64748b;margin-top:2px">CS: ${fmtInt(r.AvailableQty_CapelStreet)}</div>`:'')}</td>
+        <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap;${r.stock<=0?'color:#dc2626':''}">${fmtInt(r.stock)}</td>
         <td class="num" style="white-space:nowrap">${(()=>{
           const xfr = getTransferFlag(r);
           // Use raw AQty fields — NetStock_Arklow is remapped in Capel mode
           const otherStockVal = state.channel==='capel'
-            ? Math.max(0,(r.AQty_AK||0)-(r.OnOrderQty_Arklow||0))
-            : Math.max(0,(r.AQty_CS||0)-(r.OnOrderQty_CapelStreet||0));
+            ? Math.max(0,(r.AvailableQty_Arklow||0)-(r.OnOrderQty_Arklow||0))
+            : Math.max(0,(r.AvailableQty_CapelStreet||0)-(r.OnOrderQty_CapelStreet||0));
           if(!xfr) return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>`;
           return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>
-            <div class="xfr-flag surplus" title="Surplus at ${xfr.otherLabel} — ${xfr.otherCoverDays}d cover. Up to ${fmtInt(xfr.qty)} units available to transfer.">⇄ Transfer ${fmtInt(xfr.qty)}</div>`;
+            <div class="xfr-flag surplus" title="${xfr.otherLabel}: ${fmtInt(xfr.otherStock)} in stock, needs ${fmtInt(xfr.otherTarget)} for 56d cover, surplus ${fmtInt(xfr.otherSurplus)}. Destination needs ${fmtInt(xfr.destNeeds)}. Transfer: ${fmtInt(xfr.qty)} units.">⇄ Transfer ${fmtInt(xfr.qty)} from ${xfr.otherLabel}</div>`;
         })()}</td>
         <td class="num">${fmtInt(r.demandQty)}</td>
         <td class="num">${momChip}</td>
@@ -2394,6 +2421,9 @@ function render(){
       return sk.dir*(av-bv);
     });
     supplierTable.style.display='table';detailTable.style.display='none';backBtn.style.display='none';activeLabel.textContent='';
+    // Show transfer pick note button only when inside a supplier that has transfers
+    const _xfrBtn=document.getElementById('xfrPickBtn');
+    if(_xfrBtn) _xfrBtn.style.display=state.activeSupplier?'inline-flex':'none';
     const spb=document.getElementById('stickyPoBar'); if(spb) spb.style.display='none';
     document.getElementById('resultCount').textContent=`${fmtInt(summary.length)} suppliers`;
     document.getElementById('mRows').textContent=fmtInt(summary.length);
@@ -2474,6 +2504,94 @@ function exportCSV(){
   const lines=[cols.join(',')];
   for(const r of rows){lines.push(cols.map(c=>{let v=r[c];if(typeof v==='number') v=String(v);v=String(v??'');if(/[",\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"';return v;}).join(','));}
   const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href);
+}
+
+// ─── TRANSFER PICKING NOTE PDF ───────────────────────────────────────────────
+function exportTransferPickingNote(){
+  const isCapel = state.channel === 'capel';
+  const fromLoc = isCapel ? 'Arklow' : 'Capel Street';
+  const toLoc   = isCapel ? 'Capel Street' : 'Arklow';
+
+  // Get all rows with a transfer flag for the active supplier
+  const rows = getFilteredRows().filter(r => {
+    const xfr = getTransferFlag(r);
+    return xfr && xfr.qty > 0;
+  });
+
+  if(!rows.length){ alert('No transfer opportunities for this supplier with current filters.'); return; }
+
+  const now = new Date().toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'});
+  const supplier = state.activeSupplier || 'Unknown Supplier';
+
+  // Build HTML for PDF printing
+  const rowsHtml = rows.map(r => {
+    const xfr = getTransferFlag(r);
+    const binFrom = isCapel ? (r.BinRack_AK||'—') : (r.BinRack_CS||'—');
+    const stockFrom = isCapel
+      ? Math.max(0,(r.AvailableQty_Arklow||0)-(r.OnOrderQty_Arklow||0))
+      : Math.max(0,(r.AvailableQty_CapelStreet||0)-(r.OnOrderQty_CapelStreet||0));
+    return `<tr>
+      <td style="padding:8px;border:1px solid #ccc;font-family:monospace;font-size:12px">${esc(r.SKU)}</td>
+      <td style="padding:8px;border:1px solid #ccc;font-size:13px">${esc(r.ItemTitle)}</td>
+      <td style="padding:8px;border:1px solid #ccc;text-align:center;font-weight:700;font-size:13px">${esc(binFrom)}</td>
+      <td style="padding:8px;border:1px solid #ccc;text-align:center;font-size:13px">${fmtInt(stockFrom)}</td>
+      <td style="padding:8px;border:1px solid #ccc;text-align:center;font-weight:900;font-size:16px;color:#1e3a5f">${fmtInt(xfr.qty)}</td>
+      <td style="padding:8px;border:1px solid #ccc;width:80px">&nbsp;</td>
+    </tr>`;
+  }).join('');
+
+  const totalUnits = rows.reduce((s,r)=>{ const x=getTransferFlag(r); return s+(x?x.qty:0); },0);
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Transfer Picking Note</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:20px;color:#0f172a}
+    h1{font-size:18px;margin:0 0 4px}
+    .sub{font-size:13px;color:#64748b;margin-bottom:16px}
+    .meta{display:flex;gap:32px;margin-bottom:16px;font-size:13px}
+    .meta div{display:flex;flex-direction:column;gap:2px}
+    .meta strong{font-size:15px;color:#1e3a5f}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead th{background:#1e3a5f;color:#fff;padding:8px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+    thead th.r{text-align:center}
+    tfoot td{background:#f1f5f9;font-weight:700;padding:8px;border:1px solid #ccc}
+    .footer{margin-top:24px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px}
+    @media print{body{margin:10px}.no-print{display:none}}
+  </style>
+  </head><body>
+  <button class="no-print" onclick="window.print()" style="margin-bottom:16px;padding:8px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save as PDF</button>
+  <h1>Stock Transfer Picking Note</h1>
+  <div class="sub">Generated ${now} · Lenehans Purchasing Dashboard</div>
+  <div class="meta">
+    <div><span>Supplier</span><strong>${esc(supplier)}</strong></div>
+    <div><span>Transfer from</span><strong>${esc(fromLoc)}</strong></div>
+    <div><span>Transfer to</span><strong>${esc(toLoc)}</strong></div>
+    <div><span>Total lines</span><strong>${rows.length}</strong></div>
+    <div><span>Total units</span><strong>${fmtInt(totalUnits)}</strong></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>SKU</th>
+      <th>Item title</th>
+      <th class="r">Bin (${esc(fromLoc)})</th>
+      <th class="r">In stock</th>
+      <th class="r">Transfer qty</th>
+      <th class="r">Picked ✓</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+    <tfoot><tr>
+      <td colspan="4">Total units to transfer</td>
+      <td style="text-align:center">${fmtInt(totalUnits)}</td>
+      <td></td>
+    </tr></tfoot>
+  </table>
+  <div class="footer">Lenehans Purchasing Dashboard · Transfer from ${esc(fromLoc)} → ${esc(toLoc)} · ${esc(supplier)} · ${now}</div>
+  </body></html>`;
+
+  // Open in new window for print/save as PDF
+  const win = window.open('','_blank','width=900,height=700');
+  win.document.write(html);
+  win.document.close();
 }
 
 // ─── PO EXPORT ───────────────────────────────────────────────────────────────
