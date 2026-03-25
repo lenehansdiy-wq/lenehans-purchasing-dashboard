@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.16 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.17 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -399,7 +399,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.16 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.17 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -607,7 +607,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.16 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.17 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1854,14 +1854,20 @@ function getTransferFlag(r){
   const destNeeds   = Math.max(0, destTarget - destStock);
 
   // How much can Arklow/CS spare? Must keep its own 56-day cover
-  const otherTarget = Math.ceil(otherDaily * TARGET_DAYS);
-  const otherSurplus = Math.max(0, otherStock - otherTarget);
+  // Source must always keep the GREATER of: 56-day cover OR 50% of its stock
+  // This prevents stripping a low-stock location
+  const otherTarget  = Math.ceil(otherDaily * TARGET_DAYS);
+  const otherMinKeep = Math.max(otherTarget, Math.ceil(otherStock * 0.5));
+  const otherSurplus = Math.max(0, otherStock - otherMinKeep);
 
-  // Transfer = what destination needs, capped at what source can spare
+  // Transfer = what destination needs, capped at what source can genuinely spare
   const transferQty = Math.min(destNeeds, otherSurplus);
-  if(transferQty < 1) return null;
 
-  return { qty: transferQty, otherStock, otherSurplus, otherTarget, otherLabel, otherCoverDays: Math.round(otherCoverDays), destNeeds };
+  // Don't flag a transfer of fewer than 3 units — not worth the effort
+  const MIN_TRANSFER = 3;
+  if(transferQty < MIN_TRANSFER) return null;
+
+  return { qty: transferQty, otherStock, otherSurplus, otherTarget, otherMinKeep, otherLabel, otherCoverDays: Math.round(otherCoverDays), destNeeds };
 }
 
 // ─── CORE COMPUTE ────────────────────────────────────────────────────────────
