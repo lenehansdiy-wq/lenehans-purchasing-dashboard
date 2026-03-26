@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.21 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.22 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -401,7 +401,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.21 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.22 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -609,7 +609,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.21 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.22 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1852,9 +1852,11 @@ function getTransferFlag(r){
   const destStock = isCapel
     ? Math.max(0,(r.AvailableQty_CapelStreet||0)-(r.OnOrderQty_CapelStreet||0))
     : Math.max(0,(r.AvailableQty_Arklow||0)-(r.OnOrderQty_Arklow||0));
+  // Destination demand — Capel = shop only (online orders fulfil from Arklow, not CS stock)
+  // Arklow = online Arklow orders only
   const destDaily = isCapel
-    ? (r.QtySold_Shop_CapelStreet_30d||0)/30
-    : (r.QtySold_Online_Total_30d||0)/30;
+    ? (r.QtySold_Shop_CapelStreet_30d||0) / 30
+    : (r.QtySold_Online_Arklow_30d||0) / 30;
   const destTarget  = Math.ceil(destDaily * TARGET_DAYS);
   const destNeeds   = Math.max(0, destTarget - destStock);
 
@@ -2624,7 +2626,20 @@ function exportTransferPickingNote(){
     @media print{body{margin:10px}.no-print{display:none}}
   </style>
   </head><body>
-  <button class="no-print" onclick="window.print()" style="margin-bottom:16px;padding:8px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save as PDF</button>
+  <button class="no-print" onclick="window.print()" style="margin-bottom:16px;margin-right:8px;padding:8px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save as PDF</button>
+  <button class="no-print" onclick="downloadCsv()" style="margin-bottom:16px;padding:8px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">⬇ Export CSV</button>
+  <script>
+  function downloadCsv(){
+    var rows = window._csvRows;
+    if(!rows||!rows.length){ alert('No data'); return; }
+    var csv = 'SKU,Quantity\n' + rows.map(function(r){ return r.sku+','+r.qty; }).join('\n');
+    var blob = new Blob([csv], {type:'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = window._csvFilename || 'transfer.csv';
+    a.click();
+  }
+  </script>
   <h1>Stock Transfer Picking Note</h1>
   <div class="sub">Generated ${now} · Lenehans Purchasing Dashboard</div>
   <div class="meta">
@@ -2659,9 +2674,18 @@ function exportTransferPickingNote(){
   </body></html>`;
 
   // Open in new window for print/save as PDF
+  // Build CSV data to pass into the new window
+  const csvRows = rows.map(r => ({
+    sku: r.SKU.trim(),
+    qty: state.transferOverrides[r.SKU] !== undefined ? state.transferOverrides[r.SKU] : (getTransferFlag(r)||{qty:0}).qty
+  })).filter(r => r.qty > 0);
+  const csvFilename = 'transfer_' + (state.activeSupplier||'note').replace(/[^a-z0-9]/gi,'_') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+
   const win = window.open('','_blank','width=900,height=700');
   win.document.write(html);
   win.document.close();
+  win._csvRows = csvRows;
+  win._csvFilename = csvFilename;
 }
 
 // ─── PO EXPORT ───────────────────────────────────────────────────────────────
