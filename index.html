@@ -667,7 +667,7 @@
   <div class="spb-supplier" id="spbSupplierName">—</div>
   <div class="spb-info" id="spbInfo"></div>
   <button onclick="exportPO()">📄 Export PO</button>
-  <button onclick="exportTransferPickingNote()" style="background:#d97706" title="Export transfer picking note for this supplier">⇄ Transfer Note</button>
+  <button onclick="exportTransferPickingNote()" style="background:#d97706" title="Capel mode = Arklow→Capel transfers. Arklow mode = Capel→Arklow transfers.">⇄ Transfer Note</button>
   <button class="spb-back" onclick="document.getElementById('backBtn').click()">← Back to suppliers</button>
 </div>
 
@@ -2560,7 +2560,7 @@ function exportCSV(){
 // Stored on window so the popup can call it via opener or we pass data directly
 function downloadTransferCsv(csvRows, filename){
   if(!csvRows||!csvRows.length){ alert('No data'); return; }
-  var csv = 'SKU,Quantity\n' + csvRows.map(function(r){ return r.sku+','+r.qty; }).join('\n');
+  var csv = 'SKU,Quantity,Batch Number\n' + csvRows.map(function(r){ return r.sku+','+r.qty+','+(r.batch||''); }).join('\n');
   var blob = new Blob([csv], {type:'text/csv'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2674,12 +2674,17 @@ function exportTransferPickingNote(){
   </body></html>`;
 
   // Open in new window for print/save as PDF
-  // Build CSV data to pass into the new window
+  // Build CSV data — include batch number (YYYYMMDD)
+  const batchDate = new Date();
+  const batchNum  = batchDate.getFullYear().toString()
+    + String(batchDate.getMonth()+1).padStart(2,'0')
+    + String(batchDate.getDate()).padStart(2,'0');
   const csvRows = rows.map(r => ({
-    sku: r.SKU.trim(),
-    qty: state.transferOverrides[r.SKU] !== undefined ? state.transferOverrides[r.SKU] : (getTransferFlag(r)||{qty:0}).qty
+    sku:   r.SKU.trim(),
+    qty:   state.transferOverrides[r.SKU] !== undefined ? state.transferOverrides[r.SKU] : (getTransferFlag(r)||{qty:0}).qty,
+    batch: batchNum
   })).filter(r => r.qty > 0);
-  const csvFilename = 'transfer_' + (state.activeSupplier||'note').replace(/[^a-z0-9]/gi,'_') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  const csvFilename = 'transfer_' + (state.activeSupplier||'note').replace(/[^a-z0-9]/gi,'_') + '_' + batchNum + '.csv';
 
   const win = window.open('','_blank','width=900,height=700');
   win.document.write(html);
