@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.20 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.21 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -257,6 +257,8 @@
     .wl-card-btn.green{background:#16a34a}.wl-card-btn.green:hover{background:#15803d}
     .wl-healthy-bar{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;font-size:12px;color:#15803d;font-weight:600;margin-top:10px}
     .health-track{width:54px;height:7px;background:#d1d9e3;border-radius:4px;overflow:hidden;border:1px solid #94a3b8}
+    .xfr-qty-input:focus{outline:none;border-color:#16a34a;box-shadow:0 0 0 2px #bbf7d0}
+    .xfr-qty-input::-webkit-inner-spin-button{opacity:1}
     .xfr-flag{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:700;background:#fff7ed;color:#92400e;border:1px solid #f97316;white-space:nowrap}
     .xfr-flag.surplus{background:#f0fdf4;color:#14532d;border-color:#4ade80}
     .health-fill{height:100%;border-radius:4px}
@@ -399,7 +401,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.20 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.21 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -607,7 +609,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.20 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.21 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1113,6 +1115,7 @@ const state = {
   poStatusMap: {},
   governedSuppliers: new Set(),
   omittedSkus: new Set(),
+  transferOverrides: {}, // SKU → qty override (0 = omit from transfer)
   supplierSort: {col:'skuCount', dir:-1},
   skuRankMap: new Map(),
   channel: 'arklow', // 'arklow' or 'capel'
@@ -1876,9 +1879,9 @@ function getTransferFlag(r){
   const otherMinKeep  = Math.max(otherTarget, Math.ceil(otherStock * sourceMinPct));
   const otherSurplus  = Math.max(0, otherStock - otherMinKeep);
 
-  // Transfer = min(what destination needs, surplus, capelMaxPct of total stock)
-  const capelMaxUnits = Math.floor(otherStock * capelMaxPct);
-  const transferQty   = Math.min(destNeeds, otherSurplus, capelMaxUnits);
+  // Transfer = min(what destination needs, surplus above otherMinKeep)
+  // otherMinKeep already enforces the 60/40 split — no further cap needed
+  const transferQty   = Math.min(destNeeds, otherSurplus);
 
   if(transferQty < 1) return null;
 
@@ -2398,13 +2401,24 @@ function render(){
         <td class="num" style="font-size:16px;font-weight:800;white-space:nowrap;${r.stock<=0?'color:#dc2626':''}">${fmtInt(r.stock)}</td>
         <td class="num" style="white-space:nowrap">${(()=>{
           const xfr = getTransferFlag(r);
-          // Use raw AQty fields — NetStock_Arklow is remapped in Capel mode
           const otherStockVal = state.channel==='capel'
             ? Math.max(0,(r.AvailableQty_Arklow||0)-(r.OnOrderQty_Arklow||0))
             : Math.max(0,(r.AvailableQty_CapelStreet||0)-(r.OnOrderQty_CapelStreet||0));
           if(!xfr) return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>`;
-          return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>
-            <div class="xfr-flag surplus" title="${xfr.otherLabel}: ${fmtInt(xfr.otherStock)} in stock · keeps min ${Math.round(xfr.sourceMinPct*100)}% (${fmtInt(xfr.otherMinKeep)}) · Capel 180D demand ${xfr.capelHigher?'higher → 60% to Capel':'lower → 40% to Capel'} · surplus ${fmtInt(xfr.otherSurplus)} · Transfer: ${fmtInt(xfr.qty)}">⇄ Transfer ${fmtInt(xfr.qty)} from ${xfr.otherLabel}</div>`;
+          const isOmittedXfr = state.omittedSkus.has(r.SKU) && !r._csRequired;
+          const overrideQty  = state.transferOverrides[r.SKU];
+          const displayQty   = overrideQty !== undefined ? overrideQty : xfr.qty;
+          const omitStyle    = isOmittedXfr ? 'opacity:0.35;pointer-events:none' : '';
+          return `<span style="font-size:12px;color:#64748b">${fmtInt(otherStockVal)} in stock</span>
+            <div style="${omitStyle};margin-top:3px;display:flex;align-items:center;gap:4px">
+              <span style="font-size:11px;color:#14532d;font-weight:600">⇄ Transfer</span>
+              <input type="number" min="0" max="${otherStockVal}" value="${displayQty}"
+                data-sku="${esc(r.SKU)}" data-maxqty="${xfr.qty}"
+                class="xfr-qty-input"
+                style="width:52px;padding:2px 4px;border:1.5px solid #4ade80;border-radius:4px;font-size:13px;font-weight:700;color:#14532d;text-align:center"
+                title="${xfr.otherLabel}: ${fmtInt(xfr.otherStock)} in stock · keeps ${fmtInt(xfr.otherMinKeep)} · surplus ${fmtInt(xfr.otherSurplus)} · suggested ${fmtInt(xfr.qty)}">
+              <span style="font-size:11px;color:#64748b">from ${xfr.otherLabel}</span>
+            </div>`;
         })()}</td>
         <td class="num">${fmtInt(r.demandQty)}</td>
         <td class="num">${momChip}</td>
@@ -2423,6 +2437,17 @@ function render(){
         else state.omittedSkus.add(sku);
         render();
       });
+    });
+    // Bind transfer qty overrides — no re-render, just store value
+    document.querySelectorAll('.xfr-qty-input').forEach(inp=>{
+      inp.addEventListener('change',e=>{
+        const sku = e.target.dataset.sku;
+        const val = parseInt(e.target.value,10);
+        if(isNaN(val)||val<0) { e.target.value=0; state.transferOverrides[sku]=0; return; }
+        state.transferOverrides[sku] = val;
+      });
+      // Prevent accidental scroll changing the value
+      inp.addEventListener('wheel',e=>e.preventDefault(),{passive:false});
     });
   }else{
     // ALWAYS build supplier summaries from the FULL computed set so health/counts are accurate.
@@ -2535,8 +2560,11 @@ function exportTransferPickingNote(){
   const fromLoc = isCapel ? 'Arklow' : 'Capel Street';
   const toLoc   = isCapel ? 'Capel Street' : 'Arklow';
 
-  // Get all rows with a transfer flag for the active supplier
+  // Get rows with transfer flag, respecting omit toggles and qty overrides
   const rows = getFilteredRows().filter(r => {
+    if(state.omittedSkus.has(r.SKU) && !r._csRequired) return false;
+    const override = state.transferOverrides[r.SKU];
+    if(override !== undefined) return override > 0;
     const xfr = getTransferFlag(r);
     return xfr && xfr.qty > 0;
   });
@@ -2556,26 +2584,28 @@ function exportTransferPickingNote(){
   // Build HTML for PDF printing
   const rowsHtml = rows.map(r => {
     const xfr = getTransferFlag(r);
+    const xfrQty = state.transferOverrides[r.SKU] !== undefined ? state.transferOverrides[r.SKU] : xfr.qty;
     const binFrom = isCapel ? (r.BinRack_AK||'—') : (r.BinRack_CS||'—');
     const stockFrom = isCapel
       ? Math.max(0,(r.AvailableQty_Arklow||0)-(r.OnOrderQty_Arklow||0))
       : Math.max(0,(r.AvailableQty_CapelStreet||0)-(r.OnOrderQty_CapelStreet||0));
     const cost      = r.SupplierCostPrice || 0;
-    const lineTotal = cost * xfr.qty;
+    const lineTotal = cost * xfrQty;
     return `<tr>
       <td style="padding:8px;border:1px solid #ccc;font-family:monospace;font-size:12px">${esc(r.SKU)}</td>
       <td style="padding:8px;border:1px solid #ccc;font-size:13px">${esc(r.ItemTitle)}</td>
       <td style="padding:8px;border:1px solid #ccc;text-align:center;font-weight:700;font-size:13px">${esc(binFrom)}</td>
       <td style="padding:8px;border:1px solid #ccc;text-align:center;font-size:13px">${fmtInt(stockFrom)}</td>
-      <td style="padding:8px;border:1px solid #ccc;text-align:center;font-weight:900;font-size:16px;color:#1e3a5f">${fmtInt(xfr.qty)}</td>
+      <td style="padding:8px;border:1px solid #ccc;text-align:center;font-weight:900;font-size:16px;color:#1e3a5f">${fmtInt(xfrQty)}</td>
       <td style="padding:8px;border:1px solid #ccc;text-align:right;font-size:13px">${cost>0?'€'+cost.toFixed(2):'—'}</td>
       <td style="padding:8px;border:1px solid #ccc;text-align:right;font-weight:700;font-size:13px;color:#1e3a5f">${lineTotal>0?'€'+lineTotal.toFixed(2):'—'}</td>
       <td style="padding:8px;border:1px solid #ccc;width:60px">&nbsp;</td>
     </tr>`;
   }).join('');
 
-  const totalUnits = rows.reduce((s,r)=>{ const x=getTransferFlag(r); return s+(x?x.qty:0); },0);
-  const totalCost  = rows.reduce((s,r)=>{ const x=getTransferFlag(r); return s+((r.SupplierCostPrice||0)*(x?x.qty:0)); },0);
+  const getXfrQty = r => state.transferOverrides[r.SKU] !== undefined ? state.transferOverrides[r.SKU] : (getTransferFlag(r)||{qty:0}).qty;
+  const totalUnits = rows.reduce((s,r)=>s+getXfrQty(r), 0);
+  const totalCost  = rows.reduce((s,r)=>s+((r.SupplierCostPrice||0)*getXfrQty(r)), 0);
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
   <title>Transfer Picking Note</title>
