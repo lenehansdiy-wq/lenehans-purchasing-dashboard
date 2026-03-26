@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.18 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.20 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -399,7 +399,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.18 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.20 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -607,7 +607,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.18 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.20 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1324,6 +1324,8 @@ function normalizeRow(r){
     QtySold_Online_Total_30d:   n('QtySold_Online_Total_30d')||n('QSold_On30'),
     QtySold_Online_Total_90d:   n('QtySold_Online_Total_90d')||n('QSold_On90'),
     QtySold_Online_Total_180d:  n('QtySold_Online_Total_180d')||n('QSold_On180'),
+    QtySold_Online_Arklow_180d:  n('QtySold_Online_Arklow_180d')||n('QSold_OnAK180'),
+    QtySold_Online_CapelStreet_180d: n('QtySold_Online_CapelStreet_180d')||n('QSold_OnCS180'),
     // Per-location 90D/180D splits (new columns from updated SQL)
     QtySold_Online_Arklow_90d:  n('QtySold_Online_Arklow_90d')||n('QSold_OnAK90'),
     QtySold_Online_Arklow_180d: n('QtySold_Online_Arklow_180d')||n('QSold_OnAK180'),
@@ -1335,7 +1337,7 @@ function normalizeRow(r){
     Revenue_Online_CapelStreet_30d: n('Revenue_Online_CapelStreet_30d')||n('Rev_OnCS30'),
     QtySold_Shop_CapelStreet_7d:  n('QtySold_Shop_CapelStreet_7d')||n('QSold_ShCS7'),
     QtySold_Shop_CapelStreet_30d: n('QtySold_Shop_CapelStreet_30d')||n('QSold_ShCS30'),
-    QtySold_Shop_CapelStreet_90d: n('QtySold_Shop_CapelStreet_90d')||n('QSold_ShCS90'),
+    QtySold_Shop_CapelStreet_90d: n('QtySold_Shop_CapelStreet_90d')||0,
     QtySold_Shop_CapelStreet_180d:n('QtySold_Shop_CapelStreet_180d')||n('QSold_ShCS180'),
     Revenue_Shop_CapelStreet_30d: n('Revenue_Shop_CapelStreet_30d')||n('Rev_ShCS30'),
     BinRack_AK: String(r.BinRack_AK||'').trim(),
@@ -1854,18 +1856,35 @@ function getTransferFlag(r){
   const destNeeds   = Math.max(0, destTarget - destStock);
 
   // How much can Arklow/CS spare? Must keep its own 56-day cover
-  // Source must always keep the GREATER of: 56-day cover OR 50% of its stock
-  // This prevents stripping a low-stock location
-  const otherTarget  = Math.ceil(otherDaily * TARGET_DAYS);
-  const otherMinKeep = Math.max(otherTarget, Math.ceil(otherStock * 0.5));
-  const otherSurplus = Math.max(0, otherStock - otherMinKeep);
+  // ── Demand-weighted split ─────────────────────────────────────────────────
+  // Compare 180D demand at each location to decide who has the stronger claim
+  // 180D gives a more reliable picture than 30D (smooths out short spikes)
+  // Arklow 180D  = online Arklow 180D
+  // Capel 180D   = online Capel 180D + shop Capel 180D (combined)
+  const akDemand180 = r.QtySold_Online_Arklow_180d || 0;
+  const csDemand180 = (r.QtySold_Online_CapelStreet_180d || 0)
+                    + (r.QtySold_Shop_CapelStreet_180d    || 0);
 
-  // Transfer = what destination needs, capped at what source can genuinely spare
-  const transferQty = Math.min(destNeeds, otherSurplus);
+  // Capel has higher demand → Capel can take up to 60%, Arklow keeps min 40%
+  // Arklow has higher or equal demand → Capel gets up to 40%, Arklow keeps min 60%
+  const capelHigher  = csDemand180 > akDemand180;
+  const capelMaxPct  = capelHigher ? 0.60 : 0.40;
+  const sourceMinPct = capelHigher ? 0.40 : 0.60;
+
+  // Source must keep: max(56-day cover, its minimum % of stock)
+  const otherTarget   = Math.ceil(otherDaily * TARGET_DAYS);
+  const otherMinKeep  = Math.max(otherTarget, Math.ceil(otherStock * sourceMinPct));
+  const otherSurplus  = Math.max(0, otherStock - otherMinKeep);
+
+  // Transfer = min(what destination needs, surplus, capelMaxPct of total stock)
+  const capelMaxUnits = Math.floor(otherStock * capelMaxPct);
+  const transferQty   = Math.min(destNeeds, otherSurplus, capelMaxUnits);
 
   if(transferQty < 1) return null;
 
-  return { qty: transferQty, otherStock, otherSurplus, otherTarget, otherMinKeep, otherLabel, otherCoverDays: Math.round(otherCoverDays), destNeeds };
+  return { qty: transferQty, otherStock, otherSurplus, otherTarget, otherMinKeep,
+           otherLabel, otherCoverDays: Math.round(otherCoverDays), destNeeds,
+           capelHigher, capelMaxPct, sourceMinPct };
 }
 
 // ─── CORE COMPUTE ────────────────────────────────────────────────────────────
@@ -2385,7 +2404,7 @@ function render(){
             : Math.max(0,(r.AvailableQty_CapelStreet||0)-(r.OnOrderQty_CapelStreet||0));
           if(!xfr) return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>`;
           return `<span style="font-size:13px;font-weight:700">${fmtInt(otherStockVal)}</span>
-            <div class="xfr-flag surplus" title="${xfr.otherLabel}: ${fmtInt(xfr.otherStock)} in stock, needs ${fmtInt(xfr.otherTarget)} for 56d cover, surplus ${fmtInt(xfr.otherSurplus)}. Destination needs ${fmtInt(xfr.destNeeds)}. Transfer: ${fmtInt(xfr.qty)} units.">⇄ Transfer ${fmtInt(xfr.qty)} from ${xfr.otherLabel}</div>`;
+            <div class="xfr-flag surplus" title="${xfr.otherLabel}: ${fmtInt(xfr.otherStock)} in stock · keeps min ${Math.round(xfr.sourceMinPct*100)}% (${fmtInt(xfr.otherMinKeep)}) · Capel 180D demand ${xfr.capelHigher?'higher → 60% to Capel':'lower → 40% to Capel'} · surplus ${fmtInt(xfr.otherSurplus)} · Transfer: ${fmtInt(xfr.qty)}">⇄ Transfer ${fmtInt(xfr.qty)} from ${xfr.otherLabel}</div>`;
         })()}</td>
         <td class="num">${fmtInt(r.demandQty)}</td>
         <td class="num">${momChip}</td>
@@ -2526,6 +2545,13 @@ function exportTransferPickingNote(){
 
   const now = new Date().toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'});
   const supplier = state.activeSupplier || 'Unknown Supplier';
+
+  // Sort by bin location at source then SKU
+  rows.sort((a,b)=>{
+    const ba = isCapel?(a.BinRack_AK||''):(a.BinRack_CS||'');
+    const bb = isCapel?(b.BinRack_AK||''):(b.BinRack_CS||'');
+    return ba.localeCompare(bb,undefined,{numeric:true,sensitivity:'base'})||a.SKU.localeCompare(b.SKU);
+  });
 
   // Build HTML for PDF printing
   const rowsHtml = rows.map(r => {
