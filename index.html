@@ -1323,6 +1323,7 @@ function normalizeRow(r){
     NetStock_Arklow:            n('NetStock_Arklow')||n('NSk_AK'),
     NetStock_CapelStreet:       n('NetStock_CapelStreet')||n('NSk_CS'),
     QtySold_Online_CapelStreet_30d: n('QtySold_Online_CapelStreet_30d')||n('QSold_OnCS30'),
+    QtySold_Online_Arklow_30d:      n('QtySold_Online_Arklow_30d')||n('QSold_OnAK30'),
     QtySold_Online_Total_7d:    n('QtySold_Online_Total_7d')||n('QSold_On7'),
     QtySold_Online_Total_30d:   n('QtySold_Online_Total_30d')||n('QSold_On30'),
     QtySold_Online_Total_90d:   n('QtySold_Online_Total_90d')||n('QSold_On90'),
@@ -1330,7 +1331,6 @@ function normalizeRow(r){
     QtySold_Online_Arklow_180d:  n('QtySold_Online_Arklow_180d')||n('QSold_OnAK180'),
     QtySold_Online_CapelStreet_180d: n('QtySold_Online_CapelStreet_180d')||n('QSold_OnCS180'),
     // Per-location 90D/180D splits (new columns from updated SQL)
-    QtySold_Online_Arklow_90d:  n('QtySold_Online_Arklow_90d')||n('QSold_OnAK90'),
     QtySold_Online_Arklow_180d: n('QtySold_Online_Arklow_180d')||n('QSold_OnAK180'),
     QtySold_Online_CapelStreet_90d:  n('QtySold_Online_CapelStreet_90d')||n('QSold_OnCS90'),
     QtySold_Online_CapelStreet_180d: n('QtySold_Online_CapelStreet_180d')||n('QSold_OnCS180'),
@@ -1832,12 +1832,11 @@ function getTransferFlag(r){
   // Daily demand at the OTHER location
   // Arklow: use QSold_OnAK30 (online 30D split) — field is stored as QtySold_Online_Total_30d before remap
   // Capel: use QtySold_Shop_CapelStreet_30d (Vend POS demand)
+  // otherDaily = demand at the SOURCE location (where stock is coming FROM)
+  // Capel mode: source=Arklow → use Arklow online 30D
+  // Arklow mode: source=Capel → use Capel shop 30D only
   const otherDaily = isCapel
-    ? (r.QtySold_Online_Arklow_90d||0) > 0
-        ? (r.QtySold_Online_Arklow_90d||0) / 90
-        : (r.QtySold_Online_CapelStreet_30d > 0   // use any available Arklow proxy
-            ? (r.QtySold_Online_Total_30d||0) / 30  // pre-remap total = Arklow in Arklow mode
-            : 0)
+    ? (r.QtySold_Online_Arklow_30d||0) / 30
     : (r.QtySold_Shop_CapelStreet_30d||0) / 30;
 
   if(otherStock <= 0) return null;
