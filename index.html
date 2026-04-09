@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.25 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.26 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -218,6 +218,7 @@
     .chip.low{background:#fed7aa;color:#9a3412;border-color:#fb923c}
     .chip.buy{background:#bfdbfe;color:#1e40af;border-color:#60a5fa}
     .chip.po-done{background:#bbf7d0;color:#14532d;border-color:#4ade80}
+    .chip.po-done-old{background:#fff7ed;color:#92400e;border-color:#fdba74}
     .chip.po-pending{background:#fee2e2;color:#991b1b;border-color:#f87171}
     .chip.cs-req{background:#fde68a;color:#78350f;border-color:#f59e0b}
     .chip.momentum-up{background:#bbf7d0;color:#14532d;border-color:#4ade80}
@@ -427,6 +428,8 @@
     body.basic-mode .sup-fb { display:none !important }
     body.basic-mode #loadBar { display:none !important }
     body.basic-mode #loadCollapsed { display:none !important }
+    body.basic-mode #loadCardFull { display:none !important }
+    body.basic-mode #loadCardCollapsed { display:none !important }
     body.basic-mode #basicModeBtn { background:#1e3a5f;color:#fff;border-color:#1e3a5f }
         .channel-btn{padding:7px 20px;border-radius:8px;border:2px solid transparent;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s}
     .channel-btn.arklow{background:#1e40af;color:#fff;border-color:#1e40af}
@@ -464,7 +467,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.25 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.26 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -677,7 +680,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.25 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.26 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1381,6 +1384,8 @@ function detectMissingColumns(rows){
     {canon:"QtySold_Online_Total_30d",  aliases:["QSold_On30"]},
     {canon:"QtySold_Online_Total_7d",   aliases:["QSold_On7"]},
     {canon:"QtySold_Online_Total_90d",  aliases:["QSold_On90"]},
+    {canon:"QtySold_Online_Arklow_90d", aliases:["QSold_OnAK90"]},
+    {canon:"QtySold_Online_CapelStreet_90d", aliases:["QSold_OnCS90"]},
     {canon:"QtySold_Online_Total_180d", aliases:["QSold_On180"]},
     {canon:"QtySold_Online_CapelStreet_30d", aliases:["QSold_OnCS30"]},
   ];
@@ -1415,6 +1420,7 @@ function normalizeRow(r){
     QtySold_Online_Total_7d:    n('QtySold_Online_Total_7d')||n('QSold_On7'),
     QtySold_Online_Total_30d:   n('QtySold_Online_Total_30d')||n('QSold_On30'),
     QtySold_Online_Total_90d:   n('QtySold_Online_Total_90d')||n('QSold_On90'),
+    QtySold_Online_Arklow_90d:  n('QtySold_Online_Arklow_90d')||n('QSold_OnAK90'),
     QtySold_Online_Total_180d:  n('QtySold_Online_Total_180d')||n('QSold_On180'),
     QtySold_Online_Arklow_180d:  n('QtySold_Online_Arklow_180d')||n('QSold_OnAK180'),
     QtySold_Online_CapelStreet_180d: n('QtySold_Online_CapelStreet_180d')||n('QSold_OnCS180'),
@@ -1497,7 +1503,11 @@ function parsePOFeed(rows){
   const monthPrefixes = ['Mar','Apr','May'];
 
   function isDoneStatus(s){ return PO_DONE_STATUSES.some(d=>(s||'').toLowerCase().includes(d)); }
-  function getCol(prefix, suffix){ return col([`${prefix} ${suffix}`,`${prefix.toLowerCase()} ${suffix.toLowerCase()}`]); }
+  function getCol(prefix, suffix){
+    // Exact match required — prevents 'Mar AK Status' matching 'Apr AK Status'
+    const target = `${prefix} ${suffix}`.toLowerCase();
+    return hdrs.find(h=>h.toLowerCase()===target) || null;
+  }
 
   // Build per-supplier history: { supplier: { arklow: [...entries], capelstreet: [...entries] } }
   const history = {};
@@ -2307,7 +2317,9 @@ function renderOrderPreview(rows, chPoMap){
   const po=chPoMap[state.activeSupplier];
   const poEl=document.getElementById('opPOStatus');
   if(po){
-    const cls=po.isDone?'po-done':'po-pending';
+    const nowMonthStr2 = new Date().toLocaleDateString('en-IE',{month:'short',year:'numeric'});
+    const doneThisMonth2 = po.isDone && po.month && po.month===nowMonthStr2;
+    const cls = doneThisMonth2 ? 'po-done' : (po.isDone ? 'po-done-old' : 'po-pending');
     const isCapel=(po.channel||'').toLowerCase().includes('capel');
     const personPart=(!isCapel&&po.person)?' · '+esc(po.person):'';
     const datePart=po.date?' · '+esc(po.date):'';
@@ -2627,7 +2639,11 @@ function render(){
           const isCapel=(s.poStatus?.channel||'').toLowerCase().includes('capel');
           const personPart=(!isCapel&&po.person)?' · '+esc(po.person):'';
           const datePart=po.date?' · '+esc(po.date):'';
-          return `<span class="chip ${po.isDone?'po-done':'po-pending'}">${esc(po.raw)}${personPart}${datePart}</span>`;
+          // Only show green if done date is in current month
+          const nowMonthStr = new Date().toLocaleDateString('en-IE',{month:'short',year:'numeric'});
+          const doneThisMonth = po.isDone && po.month && po.month===nowMonthStr;
+          const chipCls = doneThisMonth ? 'po-done' : (po.isDone ? 'po-done-old' : 'po-pending');
+          return `<span class="chip ${chipCls}">${esc(po.raw)}${personPart}${datePart}</span>`;
         })()
         :`<span class="chip po-pending">No PO</span>`;
       const health = s.orderHealth || {score:0,label:'—',cls:'conf-low'};
