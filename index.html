@@ -425,6 +425,8 @@
     body.basic-mode .col-topsku { display:none !important }
     body.basic-mode .chip-row { display:none !important }
     body.basic-mode .sup-fb { display:none !important }
+    body.basic-mode #loadBar { display:none !important }
+    body.basic-mode #loadCollapsed { display:none !important }
     body.basic-mode #basicModeBtn { background:#1e3a5f;color:#fff;border-color:#1e3a5f }
         .channel-btn{padding:7px 20px;border-radius:8px;border:2px solid transparent;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s}
     .channel-btn.arklow{background:#1e40af;color:#fff;border-color:#1e40af}
@@ -2382,8 +2384,11 @@ function renderActionNow(rows){
       const prevDone = po.history.filter(h=>h.date).slice(0,3);
       if(prevDone.length>0){
         html+=`<div style="margin-top:3px;font-size:10px;color:#64748b;line-height:1.6">`;
+        const nowMonth = new Date().toLocaleDateString('en-IE',{month:'short',year:'numeric'});
         prevDone.forEach(h=>{
-          html+=`<span style="display:block">✓ ${esc(h.month||'')}${h.date?' · '+esc(h.date):''}${h.person?' · '+esc(h.person):''}</span>`;
+          const isCurrentMonth = (h.month||'') === nowMonth;
+          const histColour = isCurrentMonth ? '#15803d' : '#d97706';
+          html+=`<span style="display:block;color:${histColour}">✓ ${esc(h.month||'')}${h.date?' · '+esc(h.date):''}${h.person?' · '+esc(h.person):''}</span>`;
         });
         html+=`</div>`;
       }
