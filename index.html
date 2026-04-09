@@ -2643,7 +2643,19 @@ function render(){
           const nowMonthStr = new Date().toLocaleDateString('en-IE',{month:'short',year:'numeric'});
           const doneThisMonth = po.isDone && po.month && po.month===nowMonthStr;
           const chipCls = doneThisMonth ? 'po-done' : (po.isDone ? 'po-done-old' : 'po-pending');
-          return `<span class="chip ${chipCls}">${esc(po.raw)}${personPart}${datePart}</span>`;
+          // Build history lines for previous done months
+          let histHtml = '';
+          if(po.history && po.history.length>0){
+            const prevDone = po.history.filter(h=>h.date && h.month!==nowMonthStr).slice(0,3);
+            if(prevDone.length>0){
+              histHtml = '<div style="margin-top:2px;font-size:10px;line-height:1.5">';
+              prevDone.forEach(h=>{
+                histHtml+=`<span style="display:block;color:#d97706">✓ ${esc(h.month||'')}${h.date?' · '+esc(h.date):''}${h.person?' · '+esc(h.person):''}</span>`;
+              });
+              histHtml += '</div>';
+            }
+          }
+          return `<div><span class="chip ${chipCls}">${esc(po.raw)}${personPart}${datePart}</span>${histHtml}</div>`;
         })()
         :`<span class="chip po-pending">No PO</span>`;
       const health = s.orderHealth || {score:0,label:'—',cls:'conf-low'};
