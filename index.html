@@ -397,35 +397,11 @@
     .channel-btn:not(.active){opacity:.7}
 
     @media (max-width:1100px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
-
-    /* ── Never Out of Stock modal ─────────────────────────────────── */
-    .noos-overlay{position:fixed;inset:0;z-index:200;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center}
-    .noos-overlay.open{display:flex}
-    .noos-modal{background:#fff;border-radius:14px;width:94vw;max-width:1100px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-    .noos-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:2px solid var(--line);flex-shrink:0}
-    .noos-head h2{margin:0;font-size:17px;font-weight:800;flex:1}
-    .noos-head .noos-count{background:#dc2626;color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:800}
-    .noos-head button{background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;padding:4px 8px}
-    .noos-head button:hover{color:#0f172a}
-    .noos-actions{display:flex;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line-light);flex-shrink:0;flex-wrap:wrap;align-items:center}
-    .noos-actions button{font-size:12px;padding:7px 14px}
-    .noos-actions .noos-summary{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600}
-    .noos-body{overflow:auto;flex:1;padding:0}
-    .noos-body table{width:100%;border-collapse:collapse}
-    .noos-body thead th{position:sticky;top:0;background:var(--thead-bg);border-bottom:2px solid var(--line);padding:9px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:left;white-space:nowrap}
-    .noos-body tbody td{padding:9px 10px;border-bottom:1px solid var(--line-light);font-size:13px;vertical-align:top}
-    .noos-body tbody tr:nth-child(even){background:var(--row-alt)}
-    .noos-body tbody tr:hover{background:var(--row-hover)}
-    .noos-body .num{text-align:right;font-variant-numeric:tabular-nums}
-    .noos-body .sup-group{background:#f1f5f9;font-weight:800;font-size:12px;color:#334155;text-transform:uppercase;letter-spacing:.04em}
-    .noos-body .sup-group td{padding:8px 10px;border-bottom:2px solid var(--line)}
-    .noos-badge-crit{background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700}
-    .noos-badge-oos{background:#991b1b;color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:800}
   </style>
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.22 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.24 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -521,7 +497,6 @@
     <button id="exportBtn" class="secondary">Export CSV</button>
     <button id="poExportBtn" class="secondary">Export PO</button>
     <button id="xfrPickBtn" class="secondary" onclick="exportTransferPickingNote()" title="Export transfer picking note — only visible when inside a supplier" style="display:none">⇄ Transfer Note</button>
-    <button id="neverOosBtn" class="secondary" onclick="openNeverOOS()" title="Show top-selling SKUs (ABC A) that are critical or out of stock">🚨 Never Out of Stock</button>
   </div>
 
   <!-- Slim metrics + legend strip -->
@@ -634,7 +609,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.22 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.24 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1151,8 +1126,8 @@ const state = {
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const DEFAULT_URL   = 'https://docs.google.com/spreadsheets/d/1LnMn_BU0DIHSOihsTVS0kl0bWITWlxayvdgfMtYoKyQ/export?format=csv&gid=734583899';
-const CS_URL        = 'https://docs.google.com/spreadsheets/d/1PF5QxmIvX2K4Kqz5zWeRUFv7uSRllCAMkhxhvizAjkw/export?format=csv&gid=0';
-const PO_URL        = 'https://docs.google.com/spreadsheets/d/1PF5QxmIvX2K4Kqz5zWeRUFv7uSRllCAMkhxhvizAjkw/export?format=csv&gid=48828416';
+const CS_URL        = 'https://docs.google.com/spreadsheets/d/1GxKCny_UFYpuEpp2YSqnZUpE39Kx2vUq/export?format=csv&gid=595917858';
+const PO_URL        = 'https://docs.google.com/spreadsheets/d/1GxKCny_UFYpuEpp2YSqnZUpE39Kx2vUq/export?format=csv&gid=1814828386';
 // Monthly sales history — SKU × month columns (2024_01 … 2025_02)
 const MONTHLY_URL   = 'https://docs.google.com/spreadsheets/d/1LnMn_BU0DIHSOihsTVS0kl0bWITWlxayvdgfMtYoKyQ/export?format=csv&gid=1156598081';
 
@@ -1368,6 +1343,7 @@ function normalizeRow(r){
     QtySold_Shop_CapelStreet_90d: n('QtySold_Shop_CapelStreet_90d')||0,
     QtySold_Shop_CapelStreet_180d:n('QtySold_Shop_CapelStreet_180d')||n('QSold_ShCS180'),
     Revenue_Shop_CapelStreet_30d: n('Revenue_Shop_CapelStreet_30d')||n('Rev_ShCS30'),
+    Barcode:     String(r.Barcode||'').trim(),
     BinRack_AK: String(r.BinRack_AK||'').trim(),
     BinRack_CS: String(r.BinRack_CS||'').trim(),
     SupplierCostPrice:num(r.SupplierCostPrice),
@@ -1407,13 +1383,13 @@ function parseCSFeed(rows){
 
 // ─── PO STATUS FEED PARSING ──────────────────────────────────────────────────
 function parsePOFeed(rows){
-  // Columns (new format): MonthKey, Supplier, Status Arklow, Status Capel Street,
-  //   DoneDate Arklow, DoneDate Capel Street, DoneBy Arklow, DoneBy Capel Street
-  // One row per supplier per month. Arklow and Capel Street are separate columns.
+  // New format: MonthKey, Supplier,
+  //   AK Status, AK Done, AK By, CS Status, CS Done, CS By
+  //   (3 months: Mar/Apr/May 2026 — 6 cols each)
+  // Also supports legacy format with Status Arklow / Status Capel Street columns
   const map = {};
   if(!rows.length) return map;
 
-  // Find columns by exact or partial match
   const hdrs = Object.keys(rows[0]);
   function col(keywords){
     for(const kw of keywords){
@@ -1423,47 +1399,82 @@ function parsePOFeed(rows){
     return null;
   }
 
-  const supplierCol    = col(['supplier']);
-  const statusAKCol    = col(['status arklow','status ak','Status Arklow']);
-  const statusCSCol    = col(['status capel','status cs','Status Capel']);
-  const dateAKCol      = col(['donedate arklow','done date arklow','date arklow']);
-  const dateCSCol      = col(['donedate capel','done date capel','date capel']);
-  const personAKCol    = col(['doneby arklow','done by arklow','by arklow']);
-  const personCSCol    = col(['doneby capel','done by capel','by capel']);
-
+  const supplierCol = col(['supplier']);
   if(!supplierCol) return map;
 
-  function makeEntry(rawStatus, date, person, channel){
-    const statusLower = (rawStatus||'').toLowerCase();
-    const isDone = PO_DONE_STATUSES.some(s=>statusLower.includes(s));
-    return { raw:rawStatus||'', isDone, date:date||'', person:person||'', channel };
-  }
+  // Flat format: one row per supplier, 3 months as column groups
+  // Mar AK Status, Mar AK Done, Mar AK By, Mar CS Status, Mar CS Done, Mar CS By
+  // Apr AK Status, Apr AK Done, Apr AK By, Apr CS Status, Apr CS Done, Apr CS By
+  // May AK Status, May AK Done, May AK By, May CS Status, May CS Done, May CS By
+  const monthPrefixes = ['Mar','Apr','May'];
+
+  function isDoneStatus(s){ return PO_DONE_STATUSES.some(d=>(s||'').toLowerCase().includes(d)); }
+  function getCol(prefix, suffix){ return col([`${prefix} ${suffix}`,`${prefix.toLowerCase()} ${suffix.toLowerCase()}`]); }
+
+  // Build per-supplier history: { supplier: { arklow: [...entries], capelstreet: [...entries] } }
+  const history = {};
 
   for(const r of rows){
     const supplier = String(r[supplierCol]||'').trim();
     if(!supplier) continue;
+    if(!history[supplier]) history[supplier] = { arklow:[], capelstreet:[] };
 
-    const statusAK = statusAKCol ? String(r[statusAKCol]||'').trim() : '';
-    const statusCS = statusCSCol ? String(r[statusCSCol]||'').trim() : '';
-    const dateAK   = dateAKCol   ? String(r[dateAKCol]||'').trim()   : '';
-    const dateCS   = dateCSCol   ? String(r[dateCSCol]||'').trim()   : '';
-    const personAK = personAKCol ? String(r[personAKCol]||'').trim() : '';
-    // Capel Street: no DoneBy per spec — person intentionally blank
+    for(const prefix of monthPrefixes){
+      const akStatusCol = getCol(prefix,'AK Status');
+      const akDoneCol   = getCol(prefix,'AK Done');
+      const akByCol     = getCol(prefix,'AK By');
+      const csStatusCol = getCol(prefix,'CS Status');
+      const csDoneCol   = getCol(prefix,'CS Done');
+      const csByCol     = getCol(prefix,'CS By');
 
-    // Store Arklow entry — keyed by supplier||arklow
-    const akKey = `${supplier}||arklow`;
-    if(statusAK || !map[akKey]){
-      map[akKey] = makeEntry(statusAK, dateAK, personAK, 'arklow');
+      const statusAK = akStatusCol ? String(r[akStatusCol]||'').trim() : '';
+      const statusCS = csStatusCol ? String(r[csStatusCol]||'').trim() : '';
+      const dateAK   = akDoneCol   ? String(r[akDoneCol]||'').trim()   : '';
+      const dateCS   = csDoneCol   ? String(r[csDoneCol]||'').trim()   : '';
+      const personAK = akByCol     ? String(r[akByCol]||'').trim()     : '';
+      const personCS = csByCol     ? String(r[csByCol]||'').trim()     : '';
+      const monthLabel = `${prefix} 2026`;
+
+      if(statusAK){
+        history[supplier].arklow.push({
+          raw:statusAK, isDone:isDoneStatus(statusAK),
+          date:dateAK, person:personAK, month:monthLabel, channel:'arklow'
+        });
+      }
+      if(statusCS){
+        history[supplier].capelstreet.push({
+          raw:statusCS, isDone:isDoneStatus(statusCS),
+          date:dateCS, person:personCS, month:monthLabel, channel:'capel street'
+        });
+      }
     }
-
-    // Store Capel Street entry — keyed by supplier||capel street
-    const csKey = `${supplier}||capel street`;
-    if(statusCS || !map[csKey]){
-      map[csKey] = makeEntry(statusCS, dateCS, '', 'capel street');
-    }
-
-    // No legacy supplier-only key stored — channel-specific keys are always used
   }
+
+  // Build map entries — latest status + history array for chip display
+  for(const [supplier, h] of Object.entries(history)){
+    // Sort by month descending (most recent first)
+    const sortEntries = arr => arr.sort((a,b) => {
+      const da = new Date(a.month), db = new Date(b.month);
+      return isNaN(da)||isNaN(db) ? 0 : db-da;
+    });
+
+    const akEntries = sortEntries(h.arklow);
+    const csEntries = sortEntries(h.capelstreet);
+
+    const akLatest = akEntries[0] || null;
+    const csLatest = csEntries[0] || null;
+
+    const akKey = `${supplier}||arklow`;
+    const csKey = `${supplier}||capel street`;
+
+    if(akLatest){
+      map[akKey] = { ...akLatest, history: akEntries.filter(e=>e.isDone).slice(0,3) };
+    }
+    if(csLatest){
+      map[csKey] = { ...csLatest, history: csEntries.filter(e=>e.isDone).slice(0,3) };
+    }
+  }
+
   return map;
 }
 
@@ -2275,7 +2286,22 @@ function renderActionNow(rows){
     }
     if(!po) return '—&nbsp;No PO on record';
     const icon=po.isDone?'✅':'🔴';
-    return `${icon} ${esc(po.raw)}${po.date?'&nbsp;·&nbsp;'+esc(po.date):''}${po.person?'&nbsp;·&nbsp;'+esc(po.person):''}`;
+    // Current status line
+    let html=`${icon} ${esc(po.raw)}`;
+    if(po.date) html+=`&nbsp;·&nbsp;${esc(po.date)}`;
+    if(po.person) html+=`&nbsp;·&nbsp;${esc(po.person)}`;
+    // History — last 3 completed dates stacked below
+    if(po.history && po.history.length>0){
+      const prevDone = po.history.filter(h=>h.date).slice(0,3);
+      if(prevDone.length>0){
+        html+=`<div style="margin-top:3px;font-size:10px;color:#64748b;line-height:1.6">`;
+        prevDone.forEach(h=>{
+          html+=`<span style="display:block">✓ ${esc(h.month||'')}${h.date?' · '+esc(h.date):''}${h.person?' · '+esc(h.person):''}</span>`;
+        });
+        html+=`</div>`;
+      }
+    }
+    return html;
   }
 
   function makeCard(s){
@@ -2631,6 +2657,7 @@ function exportTransferPickingNote(){
     const lineTotal = cost * xfrQty;
     return `<tr>
       <td style="padding:8px;border:1px solid #ccc;font-family:monospace;font-size:12px">${esc(r.SKU)}</td>
+      <td style="padding:8px;border:1px solid #ccc;font-family:monospace;font-size:12px">${esc(r.Barcode||'—')}</td>
       <td style="padding:8px;border:1px solid #ccc;font-size:13px">${esc(r.ItemTitle)}</td>
       <td style="padding:8px;border:1px solid #ccc;text-align:center;font-weight:700;font-size:13px">${esc(binFrom)}</td>
       <td style="padding:8px;border:1px solid #ccc;text-align:center;font-size:13px">${fmtInt(stockFrom)}</td>
@@ -2677,6 +2704,7 @@ function exportTransferPickingNote(){
   <table>
     <thead><tr>
       <th>SKU</th>
+      <th>Barcode</th>
       <th>Item title</th>
       <th class="r">Bin (${esc(fromLoc)})</th>
       <th class="r">In stock</th>
@@ -3091,162 +3119,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   setStatus('⏳ Auto-loading all feeds…',false);
   loadFromUrl();
 });
-
-// ─── NEVER OUT OF STOCK ──────────────────────────────────────────────────────
-function getNeverOOSRows(){
-  if(!state.computedRows||!state.computedRows.length) return [];
-  return state.computedRows.filter(r=>
-    r.abcClass==='A' && ['Critical','Out of Stock'].includes(r.coverStatus) && r.buy>0
-  ).sort((a,b)=>{
-    const sup=a.SupplierName.localeCompare(b.SupplierName);
-    if(sup!==0) return sup;
-    return a.daysOfCover - b.daysOfCover;
-  });
-}
-
-let noosSelected=new Set();
-
-function openNeverOOS(){
-  const rows=getNeverOOSRows();
-  noosSelected=new Set(rows.map(r=>r.SKU));
-  renderNeverOOSTable(rows);
-  document.getElementById('noosOverlay').classList.add('open');
-}
-
-function closeNeverOOS(){
-  document.getElementById('noosOverlay').classList.remove('open');
-}
-
-function renderNeverOOSTable(rows){
-  const countEl=document.getElementById('noosCount');
-  const summaryEl=document.getElementById('noosSummary');
-  const tbody=document.getElementById('noosTbody');
-  countEl.textContent=rows.length;
-  if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--muted)">🎉 All top sellers are in stock — nice work!</td></tr>';
-    summaryEl.textContent='';
-    return;
-  }
-  let html='';
-  let lastSup='';
-  let selCount=0, selCost=0;
-  for(const r of rows){
-    if(r.SupplierName!==lastSup){
-      lastSup=r.SupplierName;
-      html+='<tr class="sup-group"><td colspan="10">📦 '+esc(lastSup)+'</td></tr>';
-    }
-    const checked=noosSelected.has(r.SKU);
-    if(checked){selCount++;selCost+=r.buy*(r.SupplierCostPrice||0);}
-    const badge=r.coverStatus==='Out of Stock'
-      ?'<span class="noos-badge-oos">OOS</span>'
-      :'<span class="noos-badge-crit">Critical</span>';
-    const days=r.daysOfCover>=9999?'∞':Math.round(r.daysOfCover)+'d';
-    html+='<tr>'+
-      '<td><input type="checkbox" data-sku="'+esc(r.SKU)+'" '+(checked?'checked':'')+' onchange="toggleNoosSku(this)"></td>'+
-      '<td style="font-weight:700;font-size:12px;white-space:nowrap">'+esc(r.SKU)+'</td>'+
-      '<td style="max-width:280px">'+esc(r.ItemTitle)+'</td>'+
-      '<td>'+badge+' '+days+'</td>'+
-      '<td class="num">'+fmtInt(r.stock)+'</td>'+
-      '<td class="num" style="font-weight:700;color:#dc2626">'+fmtInt(r.buy)+'</td>'+
-      '<td class="num">€'+num(r.SupplierCostPrice).toFixed(2)+'</td>'+
-      '<td class="num" style="font-weight:700">€'+(r.buy*(r.SupplierCostPrice||0)).toFixed(2)+'</td>'+
-      '<td class="num">'+r.abcClass+'</td>'+
-      '<td class="num">'+fmtInt(r.QtySold_Online_Total_180d||0)+'</td>'+
-    '</tr>';
-  }
-  tbody.innerHTML=html;
-  updateNoosSummary(rows);
-}
-
-function toggleNoosSku(cb){
-  const sku=cb.dataset.sku;
-  if(cb.checked) noosSelected.add(sku); else noosSelected.delete(sku);
-  updateNoosSummary(getNeverOOSRows());
-}
-
-function toggleAllNoos(selectAll){
-  const rows=getNeverOOSRows();
-  if(selectAll) noosSelected=new Set(rows.map(r=>r.SKU));
-  else noosSelected.clear();
-  renderNeverOOSTable(rows);
-}
-
-function updateNoosSummary(rows){
-  const sel=rows.filter(r=>noosSelected.has(r.SKU));
-  const cost=sel.reduce((s,r)=>s+r.buy*(r.SupplierCostPrice||0),0);
-  const sups=new Set(sel.map(r=>r.SupplierName)).size;
-  document.getElementById('noosSummary').textContent=
-    sel.length+' selected · '+sups+' supplier'+(sups!==1?'s':'')+' · €'+cost.toFixed(2)+' total';
-}
-
-function exportNoosPO(allInOne){
-  const rows=getNeverOOSRows().filter(r=>noosSelected.has(r.SKU));
-  if(!rows.length){alert('No SKUs selected.');return;}
-  if(allInOne){
-    downloadNoosCsv(rows,'NEVER_OOS_ALL');
-  } else {
-    const bySupplier=new Map();
-    for(const r of rows){
-      if(!bySupplier.has(r.SupplierName)) bySupplier.set(r.SupplierName,[]);
-      bySupplier.get(r.SupplierName).push(r);
-    }
-    for(const [sup,sRows] of bySupplier){
-      downloadNoosCsv(sRows,sup);
-    }
-  }
-}
-
-function downloadNoosCsv(rows, label){
-  const headers=['SupplierName','SKU','ItemTitle','buy','SupplierCostPrice','coverStatus','stock','target','reason','Tax Rate'];
-  const lines=[headers.join(',')];
-  for(const r of rows){
-    const vals=[
-      r.SupplierName, r.SKU, r.ItemTitle, r.buy, r.SupplierCostPrice||0,
-      r.coverStatus, r.stock, r.target, r.reason||'', '0'
-    ].map(function(v){v=String(v==null?'':v);if(/[",\n]/.test(v)) v='"'+v.replace(/"/g,'""')+'"';return v;});
-    lines.push(vals.join(','));
-  }
-  var blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='PO_NeverOOS_'+label.replace(/[^a-z0-9]+/gi,'_')+'.csv';
-  a.click();URL.revokeObjectURL(a.href);
-}
 </script>
-
-<!-- Never Out of Stock Modal -->
-<div class="noos-overlay" id="noosOverlay" onclick="if(event.target===this)closeNeverOOS()">
-  <div class="noos-modal">
-    <div class="noos-head">
-      <h2>🚨 Never Out of Stock — ABC A SKUs at Risk</h2>
-      <span class="noos-count" id="noosCount">0</span>
-      <button onclick="closeNeverOOS()" title="Close">&times;</button>
-    </div>
-    <div class="noos-actions">
-      <button onclick="toggleAllNoos(true)">☑ Select all</button>
-      <button class="secondary" onclick="toggleAllNoos(false)">☐ Deselect all</button>
-      <button style="background:#16a34a" onclick="exportNoosPO(true)">📄 Download combined PO</button>
-      <button style="background:#1d55d4" onclick="exportNoosPO(false)">📄 Download POs by supplier</button>
-      <span class="noos-summary" id="noosSummary"></span>
-    </div>
-    <div class="noos-body">
-      <table>
-        <thead><tr>
-          <th style="width:30px">✓</th>
-          <th>SKU</th>
-          <th>Item</th>
-          <th>Status</th>
-          <th class="num">Stock</th>
-          <th class="num">Buy Qty</th>
-          <th class="num">Cost</th>
-          <th class="num">Line Total</th>
-          <th class="num">ABC</th>
-          <th class="num">180D Sales</th>
-        </tr></thead>
-        <tbody id="noosTbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
 </body>
 </html>
