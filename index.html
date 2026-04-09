@@ -397,7 +397,36 @@
     /* ── Channel toggle ─────────────────────────────────────────────────── */
     .channel-bar{display:flex;align-items:center;gap:8px;background:#f0f9ff;border:2px solid #bae6fd;border-radius:10px;padding:8px 14px;margin-bottom:10px}
     .channel-bar .lbl{font-size:12px;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;margin-right:4px}
-    .channel-btn{padding:7px 20px;border-radius:8px;border:2px solid transparent;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s}
+    /* ── Basic mode ─────────────────────────── */
+    body.basic-mode .controls > label:not(#basicKeep),
+    body.basic-mode #demandModeLabel,
+    body.basic-mode #leadDaysLabel,
+    body.basic-mode #baseCoverLabel,
+    body.basic-mode #showFilterLabel,
+    body.basic-mode #excludeHealthyLabel,
+    body.basic-mode #buyRiskModeBtn,
+    body.basic-mode #clearRiskFiltersBtn,
+    body.basic-mode #exportBtn,
+    body.basic-mode #poExportBtn,
+    body.basic-mode #neverOosBtn { display:none !important }
+    body.basic-mode .metrics-strip { display:none !important }
+    body.basic-mode #wlHeader,
+    body.basic-mode #wlBody { display:none !important }
+    body.basic-mode #orderPreviewCard { display:none !important }
+    body.basic-mode .op-metrics { display:none !important }
+    body.basic-mode #guidanceText { display:none !important }
+    /* Hide supplier table columns in basic mode */
+    body.basic-mode .col-confidence,
+    body.basic-mode .col-health,
+    body.basic-mode .col-priority,
+    body.basic-mode .col-seasonal,
+    body.basic-mode .col-hidden,
+    body.basic-mode .col-topskubuy,
+    body.basic-mode .col-topsku { display:none !important }
+    body.basic-mode .chip-row { display:none !important }
+    body.basic-mode .sup-fb { display:none !important }
+    body.basic-mode #basicModeBtn { background:#1e3a5f;color:#fff;border-color:#1e3a5f }
+        .channel-btn{padding:7px 20px;border-radius:8px;border:2px solid transparent;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s}
     .channel-btn.arklow{background:#1e40af;color:#fff;border-color:#1e40af}
     .channel-btn.arklow:not(.active){background:#fff;color:#1e40af;border-color:#1e40af}
     .channel-btn.capel{background:#7c3aed;color:#fff;border-color:#7c3aed}
@@ -486,6 +515,9 @@
     <span class="lbl">📦 Channel:</span>
     <button class="channel-btn arklow active" id="channelArklow">🏭 Arklow Online</button>
     <button class="channel-btn capel" id="channelCapel">🏪 Capel Street Shop</button>
+    <span style="margin-left:20px;border-left:2px solid #e2e8f0;padding-left:20px">
+      <button id="basicModeBtn" onclick="toggleBasicMode()" style="padding:7px 18px;border-radius:8px;border:2px solid #64748b;background:#fff;color:#64748b;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s" title="Switch between Basic (clean) and Full (detailed) mode">⚡ Full Mode</button>
+    </span>
     <span id="channelNote" style="font-size:12px;color:#0369a1;margin-left:8px">Stock basis: NetStock_Arklow · Demand: Magento online orders</span>
   </div>
 
@@ -493,17 +525,17 @@
     <label>Search supplier / SKU / title
       <input id="searchBox" type="text" placeholder="Search supplier, SKU, title">
     </label>
-    <label title="7D = last 7 days demand&#10;30D = last 30 days demand (default)&#10;Seasonal = 30D demand adjusted by Irish seasonal profile for this month. Non-seasonal items stay at 30D.">Demand mode
+    <label id="demandModeLabel" title="7D = last 7 days demand&#10;30D = last 30 days demand (default)&#10;Seasonal = 30D demand adjusted by Irish seasonal profile for this month. Non-seasonal items stay at 30D.">Demand mode
       <select id="demandMode">
         <option value="30D" selected>30D</option>
         <option value="7D">7D</option>
         <option value="Seasonal">Seasonal</option>
       </select>
     </label>
-    <label>Lead time days
+    <label id="leadDaysLabel">Lead time days
       <input id="leadDays" type="number" min="0" step="1" value="2">
     </label>
-    <label>Base cover days
+    <label id="baseCoverLabel">Base cover days
       <input id="baseCoverDays" type="number" min="1" step="1" value="56">
     </label>
     <label title="When recent demand is zero and stock is also zero, fall back to 90D history to prevent missing a genuine need.">90D Fallback
@@ -512,14 +544,14 @@
     <label title="Use 180D history as a last resort fallback. Warning: may surface discontinued or very slow products.">180D Fallback
       <button id="fallback180Btn" class="fallback-btn fallback-off" data-active="false">180D off</button>
     </label>
-    <label>Show
+    <label id="showFilterLabel">Show
       <select id="showFilter">
         <option value="all">All</option>
         <option value="buy" selected>Buy > 0</option>
         <option value="critical">Critical / out of stock</option>
       </select>
     </label>
-    <label>Exclude healthy stock
+    <label id="excludeHealthyLabel">Exclude healthy stock
       <select id="excludeHealthyFilter">
         <option value="no">No</option>
         <option value="yes" selected>Yes</option>
@@ -598,20 +630,20 @@
           <tr>
             <th>Supplier</th>
             <th>PO Status</th>
-            <th class="num" title="Overall confidence in the buy recommendation — based on data quality, demand consistency, and stock coverage">Confidence</th>
-            <th class="num sort-th" data-sort="health" title="Order health — proportion of SKUs in this supplier that have stock cover above 30 days">Health <span class="sort-ind" id="sort-health"></span></th>
-            <th class="num">Priority</th>
+            <th class="num col-confidence" title="Overall confidence in the buy recommendation — based on data quality, demand consistency, and stock coverage">Confidence</th>
+            <th class="num sort-th col-health" data-sort="health" title="Order health — proportion of SKUs in this supplier that have stock cover above 30 days">Health <span class="sort-ind" id="sort-health"></span></th>
+            <th class="num col-priority">Priority</th>
             <th class="num sort-th" data-sort="critical" title="SKUs with under 14 days of stock, or out of stock">🔴 Critical <span class="sort-ind" id="sort-critical"></span></th>
             <th class="num" title="SKUs with 14–30 days of stock">🟠 Low</th>
             <th class="num sort-th" data-sort="buySkus" title="Number of SKUs where a buy is suggested">Buy SKUs <span class="sort-ind" id="sort-buySkus"></span></th>
             <th class="num" title="Total units to order across all SKUs for this supplier">📦 Buy Units</th>
             <th class="num sort-th" data-sort="stock" title="Total net stock at Arklow across all SKUs for this supplier">Stock <span class="sort-ind" id="sort-stock"></span></th>
             <th class="num sort-th" data-sort="cover" title="Average days of cover across SKUs for this supplier">Avg Cover <span class="sort-ind" id="sort-cover"></span></th>
-            <th class="num" title="SKUs with an active Irish seasonal rule this month">Seasonal</th>
-            <th class="num">Hidden</th>
+            <th class="num col-seasonal" title="SKUs with an active Irish seasonal rule this month">Seasonal</th>
+            <th class="num col-hidden">Hidden</th>
             <th class="num sort-th" data-sort="skuCount" title="Total SKUs for this supplier">SKUs <span class="sort-ind" id="sort-skuCount"></span></th>
-            <th class="num">Top SKU Buy</th>
-            <th>Top SKU</th>
+            <th class="num col-topskubuy">Top SKU Buy</th>
+            <th class="col-topsku">Top SKU</th>
           </tr>
         </thead>
         <tbody id="supplierTbody"></tbody>
@@ -2619,20 +2651,20 @@ function render(){
           </div>
         </div></td>
         <td>${poChip}</td>
-        <td class="num">${confBar}</td>
-        <td class="num">${healthBar}</td>
-        <td class="num"><strong>#${fmtInt(idx+1)}</strong></td>
+        <td class="num col-confidence">${confBar}</td>
+        <td class="num col-health">${healthBar}</td>
+        <td class="num col-priority"><strong>#${fmtInt(idx+1)}</strong></td>
         <td class="num">${fmtInt(s.criticalCount)}</td>
         <td class="num">${fmtInt(s.lowCount)}</td>
         <td class="num">${fmtInt(s.buySkuCount)}</td>
         <td class="num"><strong>${fmtInt(s.totalBuy)}</strong></td>
         <td class="num">${fmtInt(s.totalNetStock)}</td>
         <td class="num">${s.avgCoverDays>=9999?'∞':fmtInt(s.avgCoverDays)+'d'}</td>
-        <td class="num">${fmtInt(s.seasonalCount)}</td>
-        <td class="num">${fmtInt(s.hiddenSeasonalCount)}</td>
+        <td class="num col-seasonal">${fmtInt(s.seasonalCount)}</td>
+        <td class="num col-hidden">${fmtInt(s.hiddenSeasonalCount)}</td>
         <td class="num">${fmtInt(s.skuCount)}</td>
-        <td class="num">${fmtInt(s.topSkuBuy)}</td>
-        <td>${esc(s.topSku)}${s.topItem?' · '+esc(s.topItem):''}</td>
+        <td class="num col-topskubuy">${fmtInt(s.topSkuBuy)}</td>
+        <td class="col-topsku">${esc(s.topSku)}${s.topItem?' · '+esc(s.topItem):''}</td>
       </tr>`;
     }).join('');
     document.querySelectorAll('.supplier-link').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();state.activeSupplier=a.dataset.supplier;render();}));
@@ -2836,6 +2868,25 @@ function exportTransferPickingNote(){
 }
 
 // ─── PO EXPORT ───────────────────────────────────────────────────────────────
+// ─── BASIC / FULL MODE TOGGLE ────────────────────────────────────────────────
+function toggleBasicMode(){
+  const isBasic = document.body.classList.toggle('basic-mode');
+  const btn = document.getElementById('basicModeBtn');
+  if(btn) btn.textContent = isBasic ? '🔍 Full Mode' : '⚡ Basic Mode';
+  localStorage.setItem('lenehans_mode', isBasic ? 'basic' : 'full');
+}
+
+function applyInitialMode(){
+  // Default: basic mode
+  const saved = localStorage.getItem('lenehans_mode');
+  const goBasic = saved !== 'full'; // basic unless explicitly set to full
+  if(goBasic){
+    document.body.classList.add('basic-mode');
+    const btn = document.getElementById('basicModeBtn');
+    if(btn) btn.textContent = '🔍 Full Mode';
+  }
+}
+
 function exportPO(){
   const rows=getFilteredRows().filter(r=>r.buy>0&&(!state.omittedSkus.has(r.SKU)||r._csRequired));
   if(!rows.length){alert('No lines to export for current view.');return;}
@@ -3193,6 +3244,7 @@ function bindEvents(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  applyInitialMode();
   bindEvents();
   const monthBadge=document.getElementById('monthBadge');
   if(monthBadge) monthBadge.textContent=`Month: ${monthLabel()}`;
