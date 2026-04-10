@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.26 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.27 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -430,6 +430,11 @@
     body.basic-mode #loadCollapsed { display:none !important }
     body.basic-mode #loadCardFull { display:none !important }
     body.basic-mode #loadCardCollapsed { display:none !important }
+    #basicLoadBar { display:none; padding:10px 16px; background:#eff6ff; border-bottom:2px solid #bfdbfe; font-size:13px; color:#1e40af; font-weight:600; align-items:center; gap:12px }
+    #basicLoadBar.visible { display:flex }
+    body.basic-mode #basicLoadBar { display:flex }
+    @keyframes spin { to { transform:rotate(360deg) } }
+    .basic-spinner { width:16px;height:16px;border:2px solid #bfdbfe;border-top-color:#1e40af;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0 }
     body.basic-mode #basicModeBtn { background:#1e3a5f;color:#fff;border-color:#1e3a5f }
         .channel-btn{padding:7px 20px;border-radius:8px;border:2px solid transparent;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s}
     .channel-btn.arklow{background:#1e40af;color:#fff;border-color:#1e40af}
@@ -467,7 +472,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.26 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.27 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -524,6 +529,11 @@
       <button id="basicModeBtn" onclick="toggleBasicMode()" style="padding:7px 18px;border-radius:8px;border:2px solid #64748b;background:#fff;color:#64748b;font-size:13px;font-weight:800;cursor:pointer;transition:all .15s" title="Switch between Basic (clean) and Full (detailed) mode">⚡ Full Mode</button>
     </span>
     <span id="channelNote" style="font-size:12px;color:#0369a1;margin-left:8px">Stock basis: NetStock_Arklow · Demand: Magento online orders</span>
+  </div>
+
+  <div id="basicLoadBar">
+    <div class="basic-spinner"></div>
+    <span id="basicLoadMsg">Loading data…</span>
   </div>
 
   <div class="controls">
@@ -680,7 +690,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.26 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.27 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -1316,6 +1326,9 @@ function setStatus(msg,bad){
   if(el){ el.textContent=msg; el.style.color=bad?'var(--bad)':'#14532d'; el.style.background=bad?'#fee2e2':msg.startsWith('✅')?'#dcfce7':'#f1f5f9'; el.style.borderColor=bad?'#f87171':msg.startsWith('✅')?'#4ade80':'var(--line-light)'; }
   // Collapse load card when data loads successfully
   if(msg.startsWith('✅')&&!bad){
+    // Hide basic mode loading bar
+    const blB=document.getElementById('basicLoadBar');
+    if(blB) blB.classList.remove('visible');
     const full=document.getElementById('loadCardFull');
     const col=document.getElementById('loadCardCollapsed');
     const cs=document.getElementById('loadCollapsedStatus');
@@ -3065,6 +3078,11 @@ async function testUrl(){
 }
 
 async function loadFromUrl(){
+  // Show basic mode loading bar
+  const blBar = document.getElementById('basicLoadBar');
+  const blMsg = document.getElementById('basicLoadMsg');
+  if(blBar){ blBar.classList.add('visible'); }
+  if(blMsg){ blMsg.textContent = 'Loading data from Linnworks…'; }
   const input=document.getElementById('csvUrl');
   const rawUrl=input.value.trim();
   if(!rawUrl) return setStatus('❌ Paste a CSV URL first.',true);
@@ -3294,6 +3312,97 @@ document.addEventListener('DOMContentLoaded',()=>{
   setStatus('⏳ Auto-loading all feeds…',false);
   loadFromUrl();
 });
+
+// ─── NEVER OUT OF STOCK TAB ──────────────────────────────────────────────────
+function renderNOOS(){
+  const threshold = parseInt(document.getElementById('noosThreshold')?.value||50,10);
+  if(!state.computedRows||!state.computedRows.length){
+    document.getElementById('noosArklow').innerHTML='<div style="color:#94a3b8;font-size:13px;padding:16px">⏳ Waiting for data to load…</div>';
+    document.getElementById('noosCapel').innerHTML='';
+    return;
+  }
+
+  function buildTable(rows, locationLabel, sold180Field, stockField, onorderField){
+    const filtered = rows.filter(r=>{
+      const sold = r[sold180Field]||0;
+      if(sold < threshold) return false;
+      const stock = Math.max(0,(r[stockField]||0)-(r[onorderField]||0));
+      const daily = sold/180;
+      const cover = daily>0 ? stock/daily : 999;
+      return cover < 14;
+    }).sort((a,b)=>(b[sold180Field]||0)-(a[sold180Field]||0));
+
+    if(!filtered.length){
+      return `<div class="noos-section"><h3>📍 ${locationLabel}</h3>
+        <div style="color:#16a34a;font-size:13px;padding:8px;font-weight:600">✓ All high-velocity SKUs are in stock</div></div>`;
+    }
+
+    const rows_html = filtered.map(r=>{
+      const sold = r[sold180Field]||0;
+      const stock = Math.max(0,(r[stockField]||0)-(r[onorderField]||0));
+      const daily = sold/180;
+      const cover = daily>0 ? Math.round(stock/daily) : 999;
+      const statusCls = stock<=0 ? 'noos-oos' : 'noos-crit';
+      const statusTxt = stock<=0 ? '🔴 OOS' : '🟠 Critical';
+      const buy = Math.max(0,Math.ceil(daily*56)-stock);
+      return `<tr>
+        <td style="font-family:monospace;font-size:11px">${esc(r.SKU)}</td>
+        <td>${esc(r.ItemTitle||'')}</td>
+        <td style="font-size:11px">${esc(r.SupplierName||'')}</td>
+        <td style="text-align:right">${fmtInt(stock)}</td>
+        <td style="text-align:right">${fmtInt(sold)}</td>
+        <td style="text-align:right;font-weight:700;color:#1e40af">${fmtInt(buy)}</td>
+        <td class="${statusCls}">${statusTxt} (${cover}d)</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="noos-section"><h3>📍 ${locationLabel} — ${filtered.length} SKU${filtered.length>1?'s':''} at risk</h3>
+      <table>
+        <thead><tr><th>SKU</th><th>Item</th><th>Supplier</th>
+          <th style="text-align:right">Stock</th>
+          <th style="text-align:right">180D Sales</th>
+          <th style="text-align:right">Suggested Buy</th>
+          <th>Status</th></tr></thead>
+        <tbody>${rows_html}</tbody>
+      </table></div>`;
+  }
+
+  const rows = state.computedRows;
+  document.getElementById('noosArklow').innerHTML = buildTable(
+    rows,'Arklow','QtySold_Online_Arklow_180d','AvailableQty_Arklow','OnOrderQty_Arklow');
+  const capelRows = rows.map(r=>({...r,_cs180:(r.QtySold_Online_CapelStreet_180d||0)+(r.QtySold_Shop_CapelStreet_180d||0)}));
+  document.getElementById('noosCapel').innerHTML = buildTable(
+    capelRows,'Capel Street','_cs180','AvailableQty_CapelStreet','OnOrderQty_CapelStreet');
+}
+
+function exportNOOS(){
+  const threshold = parseInt(document.getElementById('noosThreshold')?.value||50,10);
+  if(!state.computedRows||!state.computedRows.length){ alert('No data loaded'); return; }
+  const lines=[['Location','SKU','Item Title','Supplier','Stock','180D Sales','Suggested Buy','Status'].join(',')];
+  function addRows(locationRows, label, sold180Field, stockField, onorderField){
+    locationRows.filter(r=>{
+      const sold=r[sold180Field]||0; if(sold<threshold) return false;
+      const stock=Math.max(0,(r[stockField]||0)-(r[onorderField]||0));
+      return (sold/180)>0 ? stock/(sold/180)<14 : false;
+    }).sort((a,b)=>(b[sold180Field]||0)-(a[sold180Field]||0))
+    .forEach(r=>{
+      const sold=r[sold180Field]||0;
+      const stock=Math.max(0,(r[stockField]||0)-(r[onorderField]||0));
+      const daily=sold/180;
+      const cover=daily>0?Math.round(stock/daily):999;
+      const buy=Math.max(0,Math.ceil(daily*56)-stock);
+      lines.push([label,r.SKU,`"${(r.ItemTitle||'').replace(/"/g,'""')}"`,
+        `"${(r.SupplierName||'').replace(/"/g,'""')}"`,stock,sold,buy,
+        stock<=0?'OOS':`Critical (${cover}d)`].join(','));
+    });
+  }
+  addRows(state.computedRows,'Arklow','QtySold_Online_Arklow_180d','AvailableQty_Arklow','OnOrderQty_Arklow');
+  const cr=state.computedRows.map(r=>({...r,_cs180:(r.QtySold_Online_CapelStreet_180d||0)+(r.QtySold_Shop_CapelStreet_180d||0)}));
+  addRows(cr,'Capel Street','_cs180','AvailableQty_CapelStreet','OnOrderQty_CapelStreet');
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`noos_at_risk_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
 
 // ─── NEVER OUT OF STOCK ──────────────────────────────────────────────────────
 function getNeverOOSRows(){
