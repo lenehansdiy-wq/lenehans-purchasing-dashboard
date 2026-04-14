@@ -311,7 +311,16 @@
     .cs-sku-table th.r{text-align:right}
     .cs-sku-table td{padding:6px 8px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
     .cs-sku-table td.r{text-align:right;font-variant-numeric:tabular-nums}
-    .cs-sku-table tr.dead td{background:#fff5f5}
+    #csListTable{width:100%;border-collapse:collapse;font-size:12px}
+    #csListTable th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:left;font-size:11px;font-weight:700;position:sticky;top:0;cursor:pointer}
+    #csListTable th:hover{background:#2d4a6f}
+    #csListTable td{padding:5px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle}
+    #csListTable tr:nth-child(even) td{background:#f8fafc}
+    #csListTable tr:hover td{background:#eff6ff}
+    #csListView{display:none}
+    #csListView.active{display:block}
+    #csThemeContainer.list-mode{display:none}
+        .cs-sku-table tr.dead td{background:#fff5f5}
     .cs-sku-table tr.stale td{background:#fffbf5}
     .cs-sku-table tr.slow td{background:#fefce8}
     .cs-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase}
@@ -410,6 +419,8 @@
     body.basic-mode #exportBtn,
     body.basic-mode #poExportBtn,
     body.basic-mode #neverOosBtn { display:none !important }
+    body.basic-mode #fallback90Label { display:inline-flex !important }
+    body.basic-mode #fallback180Label { display:inline-flex !important }
     body.basic-mode .metrics-strip { display:none !important }
     body.basic-mode #wlHeader,
     body.basic-mode #wlBody { display:none !important }
@@ -552,10 +563,10 @@
     <label id="baseCoverLabel">Base cover days
       <input id="baseCoverDays" type="number" min="1" step="1" value="56">
     </label>
-    <label title="When recent demand is zero and stock is also zero, fall back to 90D history to prevent missing a genuine need.">90D Fallback
+    <label id="fallback90Label" title="When recent demand is zero and stock is also zero, fall back to 90D history to prevent missing a genuine need.">90D Fallback
       <button id="fallback90Btn" class="fallback-btn fallback-on" data-active="true">✓ 90D</button>
     </label>
-    <label title="Use 180D history as a last resort fallback. Warning: may surface discontinued or very slow products.">180D Fallback
+    <label id="fallback180Label" title="Use 180D history as a last resort fallback. Warning: may surface discontinued or very slow products.">180D Fallback
       <button id="fallback180Btn" class="fallback-btn fallback-off" data-active="false">180D off</button>
     </label>
     <label id="showFilterLabel">Show
@@ -714,9 +725,29 @@
         <button class="cs-filter-btn" data-csfilter="dead">🔴 Dead only</button>
         <button class="cs-filter-btn" data-csfilter="stale">🟠 Stale only</button>
         <button class="cs-filter-btn" data-csfilter="slow">🟡 Slow only</button>
+        <span style="margin-left:12px;border-left:2px solid #e2e8f0;padding-left:12px">
+          <button id="csViewToggle" onclick="toggleCSView()" style="padding:6px 14px;border-radius:20px;border:2px solid #1e40af;background:#fff;color:#1e40af;font-size:12px;font-weight:700;cursor:pointer">📋 List view</button>
+        </span>
         <button id="csExportBtn" class="secondary" style="margin-left:auto;font-size:12px">Export slow movers CSV</button>
       </div>
       <div id="csThemeContainer"><div class="cs-no-data">Load data to see slow mover analysis.</div></div>
+      <div id="csListView">
+        <div style="overflow:auto;max-height:70vh">
+          <table id="csListTable">
+            <thead><tr>
+              <th onclick="sortCSList('SKU')">SKU</th>
+              <th onclick="sortCSList('ItemTitle')">Item</th>
+              <th onclick="sortCSList('SupplierName')">Supplier</th>
+              <th onclick="sortCSList('_slowClass')">Status</th>
+              <th onclick="sortCSList('stock')" style="text-align:right">Stock</th>
+              <th onclick="sortCSList('_bestKnownCost')" style="text-align:right">Cost</th>
+              <th onclick="sortCSList('_stockValue')" style="text-align:right">Stock Value</th>
+              <th onclick="sortCSList('QSold_On180')" style="text-align:right">180D Sales</th>
+            </tr></thead>
+            <tbody id="csListTbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div><!-- /tab-clearstock -->
 
@@ -1077,6 +1108,74 @@ function generateCampaign(theme, skus, filter){
   };
   const c=campaigns[theme.id]||campaigns.other;
   return {...c, deadCount, totalStock, totalValue, klaviyoTag:`slow-movers-${theme.id}-${new Date().toISOString().slice(0,7)}`};
+}
+
+// ─── CLEAR STOCK LIST VIEW ───────────────────────────────────────────────────
+let csListMode = false;
+let csListSort = {col:'_slowClass', dir:1};
+
+function toggleCSView(){
+  csListMode = !csListMode;
+  const btn = document.getElementById('csViewToggle');
+  const container = document.getElementById('csThemeContainer');
+  const listView = document.getElementById('csListView');
+  if(csListMode){
+    container.classList.add('list-mode');
+    listView.classList.add('active');
+    if(btn){ btn.textContent='🗂️ Category view'; btn.style.background='#1e40af'; btn.style.color='#fff'; }
+    renderCSList();
+  } else {
+    container.classList.remove('list-mode');
+    listView.classList.remove('active');
+    if(btn){ btn.textContent='📋 List view'; btn.style.background='#fff'; btn.style.color='#1e40af'; }
+  }
+}
+
+function sortCSList(col){
+  if(csListSort.col===col) csListSort.dir*=-1;
+  else { csListSort.col=col; csListSort.dir=1; }
+  renderCSList();
+}
+
+function renderCSList(){
+  const filter = document.querySelector('.cs-filter-btn.active')?.dataset.csfilter||'all';
+  const allRows = state.computedRows;
+  if(!allRows.length) return;
+
+  const slowRows = allRows.filter(r=>{
+    const cls = classifySlowMover(r);
+    if(!cls) return false;
+    if(filter!=='all'&&filter!==cls) return false;
+    r._slowClass = cls;
+    r._stockValue = (r.stock||0)*(r._bestKnownCost||0);
+    return true;
+  });
+
+  const orderMap = {dead:0, stale:1, slow:2};
+  slowRows.sort((a,b)=>{
+    let av = a[csListSort.col], bv = b[csListSort.col];
+    if(csListSort.col==='_slowClass'){ av=orderMap[av]||0; bv=orderMap[bv]||0; }
+    if(typeof av==='string') return csListSort.dir*av.localeCompare(bv||'');
+    return csListSort.dir*((av||0)-(bv||0));
+  });
+
+  const tbody = document.getElementById('csListTbody');
+  if(!tbody) return;
+  tbody.innerHTML = slowRows.map(r=>{
+    const val = (r.stock||0)*(r._bestKnownCost||0);
+    const badgeCls = r._slowClass;
+    const badgeTxt = r._slowClass==='dead'?'🔴 Dead':r._slowClass==='stale'?'🟠 Stale':'🟡 Slow';
+    return `<tr class="${r._slowClass}">
+      <td style="font-family:monospace;font-size:11px;font-weight:700;color:#1e40af">${esc(r.SKU)}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.ItemTitle)}">${esc(r.ItemTitle)}</td>
+      <td style="font-size:11px">${esc(r.SupplierName||'')}</td>
+      <td><span class="cs-badge ${badgeCls}">${badgeTxt}</span></td>
+      <td style="text-align:right">${fmtInt(r.stock||0)}</td>
+      <td style="text-align:right">${r._bestKnownCost>0?'€'+fmt1(r._bestKnownCost):'—'}</td>
+      <td style="text-align:right;font-weight:700">${val>0?'€'+fmtInt(val):'—'}</td>
+      <td style="text-align:right">${fmtInt(r.QSold_On180||0)}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderClearStock(){
@@ -3268,6 +3367,7 @@ function bindEvents(){
       document.querySelectorAll('.cs-filter-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       renderClearStock();
+      if(csListMode) renderCSList();
     });
   });
   // ── Clear Stock export ─────────────────────────────────────────────────────
