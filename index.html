@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.27 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.30 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -258,6 +258,32 @@
     .wl-card-btn.green{background:#16a34a}.wl-card-btn.green:hover{background:#15803d}
     .wl-healthy-bar{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;font-size:12px;color:#15803d;font-weight:600;margin-top:10px}
     .health-track{width:54px;height:7px;background:#d1d9e3;border-radius:4px;overflow:hidden;border:1px solid #94a3b8}
+    .team-buyer-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:20px 16px;text-align:center;cursor:pointer;transition:all .15s}
+    .team-buyer-card:hover{border-color:#1e40af;transform:translateY(-2px);box-shadow:0 4px 12px rgba(30,64,175,.15)}
+    .team-buyer-card.has-orders{border-color:#f97316}
+    .team-buyer-card.no-orders{opacity:.5}
+    .team-buyer-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#3b82f6);color:#fff;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+    .team-buyer-name{font-size:15px;font-weight:800;color:#1e3a5f;margin-bottom:4px}
+    .team-buyer-count{font-size:12px;font-weight:600;color:#f97316}
+    .team-buyer-none{font-size:12px;color:#94a3b8}
+    .team-order-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+    .team-back-btn{padding:6px 14px;background:#f1f5f9;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#475569}
+    .team-back-btn:hover{background:#e2e8f0}
+    .team-buyer-title{font-size:20px;font-weight:800;color:#1e3a5f}
+    .team-order-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .team-order-card:hover{border-color:#1e40af;background:#eff6ff}
+    .team-order-card.done{border-color:#4ade80;background:#f0fdf4;opacity:.7}
+    .team-order-info{flex:1}
+    .team-order-supplier{font-size:14px;font-weight:800;color:#1e3a5f}
+    .team-order-meta{font-size:12px;color:#64748b;margin-top:2px}
+    .team-order-chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;white-space:nowrap;display:inline-block}
+    .team-order-chip.arklow{background:#dbeafe;color:#1e40af}
+    .team-order-chip.capel{background:#ede9fe;color:#7c3aed}
+    .team-order-go{padding:6px 14px;background:#1e3a5f;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+    .team-order-go:hover{background:#2d4a6f}
+    .team-order-done-btn{padding:6px 12px;background:#f0fdf4;border:1.5px solid #4ade80;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+    .team-order-done-btn.marked{background:#dcfce7}
+    .team-section-hdr{font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;padding:8px 0 4px;margin-top:8px}
     #noosGrid table{width:100%;border-collapse:collapse;font-size:12px}
     #noosGrid th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:left;font-size:11px;font-weight:700;position:sticky;top:0}
     #noosGrid td{padding:5px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle}
@@ -487,21 +513,22 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.27 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.30 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
 <div class="wrap">
   <!-- Tab navigation -->
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="buying">📦 Buying</button>
+    <button class="tab-btn active" data-tab="team">👥 Team</button>
+    <button class="tab-btn" data-tab="buying">📦 Buying</button>
     <button class="tab-btn" data-tab="clearstock">🏷️ Clear Stock</button>
     <button class="tab-btn" data-tab="transfers">🔄 Stock Transfers</button>
     <button class="tab-btn" data-tab="noos">⭐ Never Out of Stock</button>
   </div>
 
   <!-- TAB 1: Buying -->
-  <div class="tab-panel active" id="tab-buying">
+  <div class="tab-panel" id="tab-buying">
 
   <!-- Load card: full form (shown before load) / collapsed status bar (after load) -->
   <div id="loadCardFull" class="card">
@@ -705,7 +732,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.27 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.30 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -795,6 +822,22 @@
       </div>
     </div>
   </div><!-- /tab-noos -->
+
+  <div class="tab-panel active" id="tab-team">
+    <div id="teamView" style="padding:16px 0">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <button onclick="shiftTeamDate(-1)" style="width:36px;height:36px;border-radius:50%;border:2px solid #e2e8f0;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1e3a5f">‹</button>
+        <div style="text-align:center;min-width:180px">
+          <div id="teamDateLabel" style="font-size:16px;font-weight:800;color:#1e3a5f"></div>
+          <div id="teamDateSub" style="font-size:11px;color:#94a3b8"></div>
+        </div>
+        <button onclick="shiftTeamDate(1)" style="width:36px;height:36px;border-radius:50%;border:2px solid #e2e8f0;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1e3a5f">›</button>
+        <button onclick="resetTeamDate()" id="teamTodayBtn" style="display:none;padding:4px 12px;border-radius:16px;border:1.5px solid #f97316;background:#fff7ed;color:#c2410c;font-size:12px;font-weight:700;cursor:pointer">Back to today</button>
+      </div>
+      <div id="teamBuyerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin-bottom:24px"></div>
+      <div id="teamOrderList" style="display:none"></div>
+    </div>
+  </div><!-- /tab-team -->
 
 </div><!-- /wrap -->
 
@@ -1330,8 +1373,9 @@ const state = {
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const DEFAULT_URL   = 'https://docs.google.com/spreadsheets/d/1LnMn_BU0DIHSOihsTVS0kl0bWITWlxayvdgfMtYoKyQ/export?format=csv&gid=734583899';
-const CS_URL        = 'https://docs.google.com/spreadsheets/d/1GxKCny_UFYpuEpp2YSqnZUpE39Kx2vUq/export?format=csv&gid=595917858';
-const PO_URL        = 'https://docs.google.com/spreadsheets/d/1GxKCny_UFYpuEpp2YSqnZUpE39Kx2vUq/export?format=csv&gid=1814828386';
+const PO_UPDATER_URL = 'https://script.google.com/macros/s/AKfycbwds8N7-nMBGfVJp30rlxZ9Y9k6ncoDeATcKrIpnApqVqvwTkOmNIJfFBlFm6OOD1Z_/exec';
+const CS_URL        = 'https://docs.google.com/spreadsheets/d/1RatBuXuxKn2mpznYga2pupmbTnv2m_H46BLZIxN3pKo/export?format=csv&gid=595917858';
+const PO_URL        = 'https://docs.google.com/spreadsheets/d/1RatBuXuxKn2mpznYga2pupmbTnv2m_H46BLZIxN3pKo/export?format=csv&gid=1814828386';
 // Monthly sales history — SKU × month columns (2024_01 … 2025_02)
 const MONTHLY_URL   = 'https://docs.google.com/spreadsheets/d/1LnMn_BU0DIHSOihsTVS0kl0bWITWlxayvdgfMtYoKyQ/export?format=csv&gid=1156598081';
 
@@ -3367,6 +3411,7 @@ function bindEvents(){
       if(btn.dataset.tab==='clearstock') renderClearStock();
       if(btn.dataset.tab==='transfers')  renderTransfers();
       if(btn.dataset.tab==='noos')       renderNOOS();
+      if(btn.dataset.tab==='team')       renderTeam();
     });
   });
   // ── Clear Stock filter buttons ─────────────────────────────────────────────
@@ -3404,6 +3449,8 @@ function bindEvents(){
 
 document.addEventListener('DOMContentLoaded',()=>{
   applyInitialMode();
+  updateTeamDateUI();
+  renderTeam();
   bindEvents();
   const monthBadge=document.getElementById('monthBadge');
   if(monthBadge) monthBadge.textContent=`Month: ${monthLabel()}`;
@@ -3420,6 +3467,189 @@ document.addEventListener('DOMContentLoaded',()=>{
   setStatus('⏳ Auto-loading all feeds…',false);
   loadFromUrl();
 });
+
+// ─── TEAM TAB ────────────────────────────────────────────────────────────────
+const BUYER_SCHEDULE = [{"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "104 - J.T. FULLEN", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Capel Street", "supplier": "104 - J.T. FULLEN", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "181", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ABC002 - ABC Abrasives Ltd", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "ABC002 - ABC Abrasives Ltd", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ADGO", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "ADGO", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ALD001 - ALDRIDGE SECURITY", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "ALD001 - ALDRIDGE SECURITY", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ALL7 - EXITEX LIMITED", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "ALL7 - EXITEX LIMITED", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "AMIG", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "AMIG", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "ASCOMP001 - AS ESSENTIALS LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Capel Street", "supplier": "ASCOMP001 - AS ESSENTIALS LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ASH001 - ASHTOWN TRADING", "cadence": "2x week", "orderDays": "Mon / Wed / Fri"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "ASH001 - ASHTOWN TRADING", "cadence": "3x week", "orderDays": "Mon / Wed / Fri"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "ATKO Group", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "BAS017 - LAYDEX", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "BAS017 - LAYDEX", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "BEN001 - BENSON TOOLS", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "BEN001 - BENSON TOOLS", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "BG15 - B & G Ltd", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "BG15 - B & G Ltd", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "BLA001- BLACKSPUR HAND TOOLS", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "BLA001- BLACKSPUR HAND TOOLS", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "BLUE002 - BLUESTONE SALES AND DIST LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "BLUE002 - BLUESTONE SALES AND DIST LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "CARGO001 - CARGO WORKWEAR", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "CARGO001 - CARGO WORKWEAR", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "CENT001", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "CENT001", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "CKEY001 - CENTRAL KEY", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "CKEY001 - CENTRAL KEY", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "CLA001 - CLASSIC HARDWARE LTD", "cadence": "Weekly", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "CLA001 - CLASSIC HARDWARE LTD", "cadence": "Weekly", "orderDays": "Mon / Thu"}, {"buyer": "Ashling", "email": "ashling@lenehans.ie", "channel": "Arklow", "supplier": "CON006 - CONTECH", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "CON006 - CONTECH", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "CRO001 - CROSS COUNTRY HARDWARE", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "CRO001 - CROSS COUNTRY HARDWARE", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "CUR047 - CURUST INDUSTRIES LTD", "cadence": "Weekly", "orderDays": "Mon / Thu"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "CUR047 - CURUST INDUSTRIES LTD", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "DECOR001 - RELAY GLOBAL LTD", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "Mark", "email": "mark@lenehans.ie", "channel": "Arklow", "supplier": "DECOR001 - RELAY GLOBAL LTD", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "DELPAC", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "DELPAC", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "DOL001 - DOLPHIN DISTRIBUTORS LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "DOL001 - DOLPHIN DISTRIBUTORS LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "DOS182 - DOSCO LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "DOS182 - DOSCO LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "DRA001 - DRAPER TOOLS (IRELAND) LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "DRA001 - DRAPER TOOLS (IRELAND) LTD", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "DS001 - DS SUPPLIES LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "DS001 - DS SUPPLIES LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "DUNLEVY001 - DUNLEVY DIST", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "DUNLEVY001 - DUNLEVY DIST", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Ashling", "email": "ashling@lenehans.ie", "channel": "Arklow", "supplier": "DY001 - DYCON LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "DY001 - DYCON LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "EA Accessories", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "EARTH", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "EDL", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "EVO077", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "EVO077", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "EXC001 - EXCEL INDUSTRIES", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "EXC001 - EXCEL INDUSTRIES", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "EXC078 - EXCELLENCE LTD", "cadence": "Weekly", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "EXC078 - EXCELLENCE LTD", "cadence": "Weekly", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "FF001- -INTERNATIONAL TOOL INDUSTRIES", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "FF001- -INTERNATIONAL TOOL INDUSTRIES", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "FITZPATRICK WHOLESALE", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "FLE328 - FLEETWOOD PAINTS LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "FLE328 - FLEETWOOD PAINTS LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "FORTUNE", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "FORTUNE", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "GENFITT", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "GENFITT", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "HAT001", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Capel Street", "supplier": "HAT001", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "HGW094 - DULUX PAINTS LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "HGW094 - DULUX PAINTS LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "HYG001- HYGEIA CHEMICALS LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "HYG001- HYGEIA CHEMICALS LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "Ashling", "email": "ashling@lenehans.ie", "channel": "Arklow", "supplier": "IGO106 - IGOE INTERNATIONAL LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "IGO106 - IGOE INTERNATIONAL LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "INNOVA", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "IRI118", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "IRI118", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "JM - JOSEPH MURPHY", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "JML", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "JML", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "KAR002", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "KAR002", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "LAYDEX", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "LAYDEX", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "LIF001 - LIFFEY ARTEFACTS", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "LODI - LODI UK LIMITED", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "LODI - LODI UK LIMITED", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "LYN001 - DONAL LYNCH", "cadence": "Weekly", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "LYN001 - DONAL LYNCH", "cadence": "Weekly", "orderDays": "Mon / Thu"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "MAR004 - E A MARTIN & SON LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "MAR004 - E A MARTIN & SON LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "MCL477 - MICHAEL MCLOUGHLIN & SONS LTD", "cadence": "Weekly", "orderDays": "Mon / Wed / Fri"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "MCL477 - MICHAEL MCLOUGHLIN & SONS LTD", "cadence": "Weekly", "orderDays": "Mon / Wed / Fri"}, {"buyer": "Ashling", "email": "ashling@lenehans.ie", "channel": "Arklow", "supplier": "MELON01", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Ashling", "email": "ashling@lenehans.ie", "channel": "Capel Street", "supplier": "MELON01", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "MOD159", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "MOD159", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "NAT001 - NATIONAL TAPE SALES LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "NAT001 - NATIONAL TAPE SALES LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ORIGO - ORIGO LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "ORIGO - ORIGO LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "POL413 - RAWLPLUG IRELAND LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "POL413 - RAWLPLUG IRELAND LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "PPG001", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "PRI001", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "RESTO --VAN ES LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "RESTO --VAN ES LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "RON228 - RONSEAL (IRELAND) LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "RON228 - RONSEAL (IRELAND) LTD", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "RUBINETA", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "RUBINETA", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "SHI221 - CHARLIE SHIELS LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "SHI221 - CHARLIE SHIELS LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "SMALL", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "SMALL", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "SMALL PAUL - PAUL SMALL WALLCOVERINGS LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "SMALL PAUL - PAUL SMALL WALLCOVERINGS LTD", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "SMAR001 - SMART GARDEN", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "SMAR001 - SMART GARDEN", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "SOUDAL - SOUDAL", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "SOUDAL - SOUDAL", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Ashling", "email": "ashling@lenehans.ie", "channel": "Arklow", "supplier": "SOURCEPRO - SUPERB HARDWARE", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Ashling", "email": "ashling@lenehans.ie", "channel": "Capel Street", "supplier": "SOURCEPRO - SUPERB HARDWARE", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "SPEC001", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "SPEC001", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Mark", "email": "mark@lenehans.ie", "channel": "Arklow", "supplier": "STAX - STAX TRADE CENTRES", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Mark", "email": "mark@lenehans.ie", "channel": "Capel Street", "supplier": "STAX - STAX TRADE CENTRES", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "TETROSYL - TETROLSYL IRELAND", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "TETROSYL - TETROLSYL IRELAND", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "UEL001 - UPPERCROSS ENTERPRISES", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "UEL001 - UPPERCROSS ENTERPRISES", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "UI", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "UI", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "UNI279 - UNICHEM LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "UNI279 - UNICHEM LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "VITA001 - VITAVIA GREENHOUSES LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "WILSONS", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "WILSONS", "cadence": "Weekly", "orderDays": "Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "WIPEOUT", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "Paul", "email": "paul@lenehans.ie", "channel": "Capel Street", "supplier": "WIPEOUT", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "ZCEN66 - CENTURION EUROPE LTD", "cadence": "Fortnightly", "orderDays": "Mon / Thu"}, {"buyer": "Elaine", "email": "elaine@lenehans.ie", "channel": "Arklow", "supplier": "ZCEN66 - CENTURION EUROPE LTD", "cadence": "2x week", "orderDays": "Mon / Thu"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ZENTRADA", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "ZENTRADA", "cadence": "Fortnightly", "orderDays": "1st & 3rd Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Arklow", "supplier": "ZFFA90 - CQFD PROFILES LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "ZJUL00 - JULIANA GREENHOUSES LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Capel Street", "supplier": "ZJUL00 - JULIANA GREENHOUSES LTD", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "Liane", "email": "liane@lenehans.ie", "channel": "Arklow", "supplier": "ZSC566 - SCHMITT SCHUHBEDARF GMBH", "cadence": "Monthly", "orderDays": "1st Mon"}, {"buyer": "David", "email": "david@lenehans.ie", "channel": "Capel Street", "supplier": "ZSC566 - SCHMITT SCHUHBEDARF GMBH", "cadence": "Monthly", "orderDays": "1st Mon"}];
+
+function shouldFireToday(cadence, date){
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const d = days[date.getDay()];
+  const wom = Math.floor((date.getDate()-1)/7);
+  if(cadence==='3x week')     return ['Mon','Wed','Fri'].includes(d);
+  if(cadence==='2x week')     return ['Mon','Thu'].includes(d);
+  if(cadence==='Weekly')      return d==='Mon';
+  if(cadence==='Fortnightly') return d==='Mon' && (wom===0||wom===2);
+  if(cadence==='Monthly')     return d==='Mon' && wom===0;
+  return false;
+}
+
+let teamDoneSet = new Set();
+let teamDate = new Date(); // date being viewed in team tab
+
+function shiftTeamDate(delta){
+  teamDate = new Date(teamDate);
+  teamDate.setDate(teamDate.getDate() + delta);
+  // Skip weekends
+  while(teamDate.getDay()===0||teamDate.getDay()===6) teamDate.setDate(teamDate.getDate()+delta);
+  updateTeamDateUI();
+  renderTeam();
+}
+
+function resetTeamDate(){
+  teamDate = new Date();
+  updateTeamDateUI();
+  renderTeam();
+}
+
+function updateTeamDateUI(){
+  const today = new Date();
+  const isToday = teamDate.toDateString()===today.toDateString();
+  const lbl = document.getElementById('teamDateLabel');
+  const sub = document.getElementById('teamDateSub');
+  const btn = document.getElementById('teamTodayBtn');
+  if(lbl) lbl.textContent = teamDate.toLocaleDateString('en-IE',{weekday:'long',day:'numeric',month:'long'});
+  if(sub) sub.textContent = isToday ? 'Today' : teamDate > today ? 'Future' : 'Past';
+  if(btn) btn.style.display = isToday ? 'none' : 'inline-block';
+}
+
+function renderTeam(){
+  const grid = document.getElementById('teamBuyerGrid');
+  const list = document.getElementById('teamOrderList');
+  if(!grid) return;
+  list.style.display='none';
+  grid.style.display='grid';
+  updateTeamDateUI();
+
+  const today = teamDate;
+  const buyers = {};
+  for(const row of BUYER_SCHEDULE){
+    if(!buyers[row.buyer]) buyers[row.buyer]={email:row.email,today:[],all:[]};
+    buyers[row.buyer].all.push(row);
+    if(shouldFireToday(row.cadence,today)) buyers[row.buyer].today.push(row);
+  }
+
+  const colours = ['#1e3a5f','#7c3aed','#0369a1','#15803d','#9a3412','#1e40af'];
+  const buyerNames = Object.keys(buyers).sort();
+
+  grid.innerHTML = buyerNames.map((name,i)=>{
+    const b = buyers[name];
+    const cnt = b.today.length;
+    // De-dupe by supplier name for display count
+    const uniqueSuppliers = [...new Set(b.today.map(r=>r.supplier))];
+    const done = uniqueSuppliers.filter(sup=>b.today.filter(r=>r.supplier===sup).every(r=>teamDoneSet.has(r.supplier+'||'+r.channel))).length;
+    const hasOrders = cnt > 0;
+    const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    return `<div class="team-buyer-card ${hasOrders?'has-orders':'no-orders'}" onclick="renderBuyerOrders('${esc(name)}')">
+      <div class="team-buyer-avatar" style="background:linear-gradient(135deg,${colours[i%colours.length]},#3b82f6)">${initials}</div>
+      <div class="team-buyer-name">${esc(name)}</div>
+      ${hasOrders
+        ? `<div class="team-buyer-count">${done}/${uniqueSuppliers.length} done today</div>`
+        : `<div class="team-buyer-none">Nothing due today</div>`
+      }
+    </div>`;
+  }).join('');
+}
+
+function renderBuyerOrders(buyerName){
+  const grid = document.getElementById('teamBuyerGrid');
+  const list = document.getElementById('teamOrderList');
+  if(!grid||!list) return;
+  grid.style.display='none';
+  list.style.display='block';
+
+  const today = teamDate;
+  const todayRows = BUYER_SCHEDULE.filter(r=>r.buyer===buyerName && shouldFireToday(r.cadence,today));
+
+  // Group by supplier
+  const bySupplier = {};
+  for(const r of todayRows){
+    if(!bySupplier[r.supplier]) bySupplier[r.supplier]={supplier:r.supplier,channels:[],cadence:r.cadence};
+    if(!bySupplier[r.supplier].channels.includes(r.channel)) bySupplier[r.supplier].channels.push(r.channel);
+  }
+  const suppliers = Object.values(bySupplier);
+
+  const dayName = teamDate.toLocaleDateString('en-IE',{weekday:'long',day:'numeric',month:'long'});
+  const pending = suppliers.filter(s=>!s.channels.every(ch=>teamDoneSet.has(s.supplier+'||'+ch)));
+  const done    = suppliers.filter(s=> s.channels.every(ch=>teamDoneSet.has(s.supplier+'||'+ch)));
+
+  let html = `<div class="team-order-header">
+    <button class="team-back-btn" onclick="renderTeam()">← Back</button>
+    <div class="team-buyer-title">👤 ${esc(buyerName)}'s orders</div>
+    <div style="font-size:12px;color:#94a3b8;margin-left:8px">${dayName}</div>
+    <div style="margin-left:auto;font-size:12px;color:#64748b;font-weight:600">${done.length}/${suppliers.length} done</div>
+  </div>`;
+
+  if(!suppliers.length){
+    html += `<div style="color:#16a34a;font-size:14px;padding:20px;text-align:center;background:#f0fdf4;border-radius:10px;font-weight:600">✓ Nothing due today</div>`;
+  } else {
+    if(pending.length){
+      html += `<div class="team-section-hdr">${pending.length} to do</div>`;
+      html += pending.map(s=>buildOrderCard(s,false,buyerName)).join('');
+    }
+    if(done.length){
+      html += `<div class="team-section-hdr" style="margin-top:16px">✓ ${done.length} completed</div>`;
+      html += done.map(s=>buildOrderCard(s,true,buyerName)).join('');
+    }
+  }
+  list.innerHTML = html;
+}
+
+function buildOrderCard(s, isDone, buyerName){
+  const channelChips = s.channels.map(ch=>
+    `<span class="team-order-chip ${ch.toLowerCase().includes('capel')?'capel':'arklow'}">${esc(ch)}</span>`
+  ).join(' ');
+  const chStr = s.channels.map(c=>`'${esc(c)}'`).join(',');
+  return `<div class="team-order-card ${isDone?'done':''}">
+    <div class="team-order-info">
+      <div class="team-order-supplier">${esc(s.supplier)}</div>
+      <div class="team-order-meta">${channelChips}&nbsp;·&nbsp;${esc(s.cadence)}</div>
+    </div>
+    <button class="team-order-done-btn ${isDone?'marked':''}"
+      onclick="event.stopPropagation();toggleTeamDone('${esc(s.supplier)}',[${chStr}],'${esc(buyerName||'')}')">
+      ${isDone?'✓ Done':'Mark done'}
+    </button>
+    <button class="team-order-go"
+      onclick="event.stopPropagation();goToSupplier('${esc(s.supplier)}')">Open →</button>
+  </div>`;
+}
+
+function toggleTeamDone(supplier, channels, buyerName){
+  const allDone = channels.every(ch=>teamDoneSet.has(supplier+'||'+ch));
+  const action = allDone ? 'pending' : 'done';
+  if(allDone) channels.forEach(ch=>teamDoneSet.delete(supplier+'||'+ch));
+  else        channels.forEach(ch=>teamDoneSet.add(supplier+'||'+ch));
+
+  // Write back to PO Status Log if URL is configured
+  if(PO_UPDATER_URL){
+    channels.forEach(ch=>{
+      const url = PO_UPDATER_URL
+        + '?supplier=' + encodeURIComponent(supplier)
+        + '&channel='  + encodeURIComponent(ch)
+        + '&buyer='    + encodeURIComponent(buyerName||'')
+        + '&action='   + action;
+      fetch(url).catch(()=>{}); // fire and forget
+    });
+  }
+
+  const list = document.getElementById('teamOrderList');
+  const hdr  = list&&list.querySelector('.team-buyer-title');
+  if(hdr){
+    const name = hdr.textContent.replace(/^👤\s*/,'').replace(/'s orders$/,'').trim();
+    renderBuyerOrders(name);
+  }
+}
+
+function goToSupplier(supplierName){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  const btn   = document.querySelector('[data-tab="buying"]');
+  const panel = document.getElementById('tab-buying');
+  if(btn)   btn.classList.add('active');
+  if(panel) panel.classList.add('active');
+  state.activeSupplier = supplierName;
+  render();
+  window.scrollTo(0,0);
+}
 
 // ─── NEVER OUT OF STOCK TAB ──────────────────────────────────────────────────
 function renderNOOS(){
