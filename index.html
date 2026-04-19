@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lenehans Purchasing Dashboard · V5.30 · INTELLIGENCE</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Lenehans Purchasing Dashboard · V5.31 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -283,19 +286,9 @@
     .team-order-go:hover{background:#2d4a6f}
     .team-order-done-btn{padding:6px 12px;background:#f0fdf4;border:1.5px solid #4ade80;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
     .team-order-done-btn.marked{background:#dcfce7}
-    .team-leaderboard{background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;padding:20px 24px;margin-bottom:24px;color:#fff}
-    .team-lb-title{font-size:13px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
-    .team-lb-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-    .team-lb-rank{font-size:18px;font-weight:900;width:28px;text-align:center;flex-shrink:0}
-    .team-lb-name{font-size:14px;font-weight:700;width:70px;flex-shrink:0}
-    .team-lb-bar-wrap{flex:1;height:10px;background:rgba(255,255,255,.1);border-radius:5px;overflow:hidden}
-    .team-lb-bar-fill{height:100%;border-radius:5px;transition:width .5s ease}
-    .team-lb-count{font-size:22px;font-weight:900;color:#4ade80;width:52px;text-align:right;flex-shrink:0}
-    .team-lb-total{font-size:12px;color:#64748b;width:40px;flex-shrink:0}
-    .team-lb-pct{font-size:12px;font-weight:700;width:36px;text-align:right;flex-shrink:0}
+
     .team-buyer-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
-    .team-buyer-ring{width:64px;height:64px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;position:relative}
-    .team-buyer-ring svg{position:absolute;top:0;left:0;transform:rotate(-90deg)}
+
     .team-section-hdr{font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;padding:8px 0 4px;margin-top:8px}
     #noosGrid table{width:100%;border-collapse:collapse;font-size:12px}
     #noosGrid th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:left;font-size:11px;font-weight:700;position:sticky;top:0}
@@ -526,7 +519,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.30 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.31 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -745,7 +738,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.30 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.31 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -3497,19 +3490,20 @@ function shouldFireToday(cadence, date){
 }
 
 let teamDoneSet = new Set();
-let teamDate = new Date(); // date being viewed in team tab
+function nearestWeekday(d){ const day=d.getDay(); if(day===0) d.setDate(d.getDate()+1); if(day===6) d.setDate(d.getDate()-1); return d; }
+let teamDate = nearestWeekday(new Date()); // weekdays only
 
 function shiftTeamDate(delta){
   teamDate = new Date(teamDate);
   teamDate.setDate(teamDate.getDate() + delta);
-  // Skip weekends
+  // Skip weekends — keep moving in same direction
   while(teamDate.getDay()===0||teamDate.getDay()===6) teamDate.setDate(teamDate.getDate()+delta);
   updateTeamDateUI();
   renderTeam();
 }
 
 function resetTeamDate(){
-  teamDate = new Date();
+  teamDate = nearestWeekday(new Date());
   updateTeamDateUI();
   renderTeam();
 }
@@ -3582,52 +3576,25 @@ function renderTeam(){
             allSuppliers, doneMonth, hasOrders: b.today.length>0};
   });
 
-  // Sort leaderboard by % done this month descending
-  const lbSorted = [...lbData].sort((a,b)=>{
-    const pa = a.allSuppliers.length ? a.doneMonth/a.allSuppliers.length : 0;
-    const pb = b.allSuppliers.length ? b.doneMonth/b.allSuppliers.length : 0;
-    return pb-pa;
-  });
-
-  const medals = ['🥇','🥈','🥉'];
-  const barColours = ['#4ade80','#86efac','#bbf7d0','#d1fae5','#f0fdf4','#f0fdf4'];
-
-  // Leaderboard HTML
-  const lbHtml = `<div class="team-leaderboard">
-    <div class="team-lb-title">🏆 ${monthNow} — Orders completed</div>
-    ${lbSorted.map((b,i)=>{
-      const pct = b.allSuppliers.length ? Math.round(b.doneMonth/b.allSuppliers.length*100) : 0;
-      return `<div class="team-lb-row">
-        <div class="team-lb-rank">${medals[i]||'#'+(i+1)}</div>
-        <div class="team-lb-name">${esc(b.name)}</div>
-        <div class="team-lb-bar-wrap"><div class="team-lb-bar-fill" style="width:${pct}%;background:${barColours[i]}"></div></div>
-        <div class="team-lb-count">${b.doneMonth}</div>
-        <div class="team-lb-total">/ ${b.allSuppliers.length}</div>
-        <div class="team-lb-pct" style="color:${pct>=80?'#4ade80':pct>=50?'#fbbf24':'#94a3b8'}">${pct}%</div>
-      </div>`;
-    }).join('')}
-  </div>`;
-
-  // Buyer cards
-  grid.innerHTML = lbHtml + lbData.map((b,i)=>{
-    const pct = b.uniqueSuppliers.length ? Math.round(b.doneToday/b.uniqueSuppliers.length*100) : 0;
-    const r = 28; const circ = 2*Math.PI*r;
-    const dash = circ * pct/100;
+  // Write buyer cards to grid
+  grid.innerHTML = lbData.map((b,i)=>{
     const initials = b.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const monthPct = b.allSuppliers.length ? Math.round(b.doneMonth/b.allSuppliers.length*100) : 0;
     return `<div class="team-buyer-card ${b.hasOrders?'has-orders':'no-orders'}" onclick="renderBuyerOrders('${esc(b.name)}')">
-      <div class="team-buyer-ring">
-        <svg width="64" height="64" viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="5"/>
-          <circle cx="32" cy="32" r="${r}" fill="none" stroke="${b.colour}" stroke-width="5"
-            stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
-        </svg>
-        <div class="team-buyer-avatar" style="width:48px;height:48px;font-size:17px;background:linear-gradient(135deg,${b.colour},#3b82f6)">${initials}</div>
-      </div>
+      <div class="team-buyer-avatar" style="background:linear-gradient(135deg,${b.colour},#3b82f6)">${initials}</div>
       <div class="team-buyer-name">${esc(b.name)}</div>
       ${b.hasOrders
-        ? `<div style="font-size:28px;font-weight:900;color:#16a34a;line-height:1">${b.doneToday}</div>
-           <div style="font-size:11px;color:#94a3b8">of ${b.uniqueSuppliers.length} done today</div>`
-        : `<div class="team-buyer-none">Nothing due today</div>`
+        ? `<div style="font-size:26px;font-weight:900;color:#16a34a;line-height:1.1">${b.doneToday}<span style="font-size:13px;font-weight:600;color:#94a3b8"> / ${b.uniqueSuppliers.length}</span></div>
+           <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">done today</div>
+           <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden">
+             <div style="height:100%;width:${monthPct}%;background:#4ade80;border-radius:2px;transition:width .4s"></div>
+           </div>
+           <div style="font-size:10px;color:#94a3b8;margin-top:3px">${monthPct}% this month</div>`
+        : `<div class="team-buyer-none">Nothing due today</div>
+           <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;margin-top:6px">
+             <div style="height:100%;width:${monthPct}%;background:#4ade80;border-radius:2px"></div>
+           </div>
+           <div style="font-size:10px;color:#94a3b8;margin-top:3px">${monthPct}% this month</div>`
       }
     </div>`;
   }).join('');
@@ -3639,6 +3606,7 @@ function renderBuyerOrders(buyerName){
   if(!grid||!list) return;
   grid.style.display='none';
   list.style.display='block';
+
 
   const today = teamDate;
   const todayRows = BUYER_SCHEDULE.filter(r=>r.buyer===buyerName && shouldFireToday(r.cadence,today));
