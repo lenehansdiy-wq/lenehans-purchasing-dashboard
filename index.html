@@ -3560,6 +3560,17 @@ function renderBuyerOrders(buyerName){
   const today = teamDate;
   const todayRows = BUYER_SCHEDULE.filter(r=>r.buyer===buyerName && shouldFireToday(r.cadence,today));
 
+  // Seed done state from PO Status Map (current month data)
+  const poMap = state.poStatusMap || {};
+  for(const row of todayRows){
+    const ch = row.channel.toLowerCase().includes('capel') ? 'capel street' : 'arklow';
+    const key = row.supplier + '||' + ch;
+    const po = poMap[key];
+    if(po && po.isDone){
+      teamDoneSet.add(row.supplier+'||'+row.channel);
+    }
+  }
+
   // Group by supplier
   const bySupplier = {};
   for(const r of todayRows){
@@ -3599,10 +3610,25 @@ function buildOrderCard(s, isDone, buyerName){
     `<span class="team-order-chip ${ch.toLowerCase().includes('capel')?'capel':'arklow'}">${esc(ch)}</span>`
   ).join(' ');
   const chStr = s.channels.map(c=>`'${esc(c)}'`).join(',');
+
+  // Get PO done details from poStatusMap for display
+  let doneDetail = '';
+  if(isDone){
+    const poMap = state.poStatusMap || {};
+    for(const ch of s.channels){
+      const mapKey = s.supplier + '||' + ch.toLowerCase();
+      const po = poMap[mapKey];
+      if(po && po.isDone && po.date){
+        doneDetail = `&nbsp;·&nbsp;${esc(po.date)}${po.person?' · '+esc(po.person):''}`;
+        break;
+      }
+    }
+  }
+
   return `<div class="team-order-card ${isDone?'done':''}">
     <div class="team-order-info">
       <div class="team-order-supplier">${esc(s.supplier)}</div>
-      <div class="team-order-meta">${channelChips}&nbsp;·&nbsp;${esc(s.cadence)}</div>
+      <div class="team-order-meta">${channelChips}&nbsp;·&nbsp;${esc(s.cadence)}${doneDetail?'<span style="color:#15803d;font-weight:600">'+doneDetail+'</span>':''}</div>
     </div>
     <button class="team-order-done-btn ${isDone?'marked':''}"
       onclick="event.stopPropagation();toggleTeamDone('${esc(s.supplier)}',[${chStr}],'${esc(buyerName||'')}')">
