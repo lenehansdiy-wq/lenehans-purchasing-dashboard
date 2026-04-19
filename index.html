@@ -3606,7 +3606,7 @@ function buildOrderCard(s, isDone, buyerName){
     </div>
     <button class="team-order-done-btn ${isDone?'marked':''}"
       onclick="event.stopPropagation();toggleTeamDone('${esc(s.supplier)}',[${chStr}],'${esc(buyerName||'')}')">
-      ${isDone?'✓ Done':'Mark done'}
+      ${isDone?'✓ Done':'Pending'}
     </button>
     <button class="team-order-go"
       onclick="event.stopPropagation();goToSupplier('${esc(s.supplier)}')">Open →</button>
