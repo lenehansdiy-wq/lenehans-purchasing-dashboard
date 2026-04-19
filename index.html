@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lenehans Purchasing Dashboard · V5.31 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.32 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -519,7 +519,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.31 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.32 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -738,7 +738,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.31 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.32 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -3544,20 +3544,16 @@ function renderTeam(){
 
   const lbData = buyerNames.map((name,i)=>{
     const b = buyers[name];
-    const uniqueSuppliers = [...new Set(b.today.map(r=>r.supplier))];
-
-    // Seed done from PO map for today's suppliers
+    // Seed done from PO map for today's suppliers (per supplier+channel)
     let doneToday = 0;
-    for(const sup of uniqueSuppliers){
-      const supRows = b.today.filter(r=>r.supplier===sup);
-      const allDone = supRows.every(r=>{
-        const ch = r.channel.toLowerCase().includes('capel')?'capel street':'arklow';
-        const po = poMap[sup+'||'+ch];
-        if(po && po.isDone){ teamDoneSet.add(sup+'||'+r.channel); return true; }
-        return teamDoneSet.has(sup+'||'+r.channel);
-      });
-      if(allDone) doneToday++;
+    for(const r of b.today){
+      const ch = r.channel.toLowerCase().includes('capel')?'capel street':'arklow';
+      const po = poMap[r.supplier+'||'+ch];
+      if(po && po.isDone) teamDoneSet.add(r.supplier+'||'+r.channel);
     }
+    // Count unique supplier+channel combos done today
+    const uniqueKeys = [...new Set(b.today.map(r=>r.supplier+'||'+r.channel))];
+    doneToday = uniqueKeys.filter(k=>teamDoneSet.has(k)).length;
 
     // Count all done this month across ALL their suppliers (not just today)
     const allSuppliers = [...new Set(b.all.map(r=>r.supplier))];
@@ -3572,7 +3568,7 @@ function renderTeam(){
       if(anyDone) doneMonth++;
     }
 
-    return {name, colour:colours[i%colours.length], uniqueSuppliers, doneToday,
+    return {name, colour:colours[i%colours.length], uniqueKeys, doneToday,
             allSuppliers, doneMonth, hasOrders: b.today.length>0};
   });
 
@@ -3584,7 +3580,7 @@ function renderTeam(){
       <div class="team-buyer-avatar" style="background:linear-gradient(135deg,${b.colour},#3b82f6)">${initials}</div>
       <div class="team-buyer-name">${esc(b.name)}</div>
       ${b.hasOrders
-        ? `<div style="font-size:26px;font-weight:900;color:#16a34a;line-height:1.1">${b.doneToday}<span style="font-size:13px;font-weight:600;color:#94a3b8"> / ${b.uniqueSuppliers.length}</span></div>
+        ? `<div style="font-size:26px;font-weight:900;color:#16a34a;line-height:1.1">${b.doneToday}<span style="font-size:13px;font-weight:600;color:#94a3b8"> / ${b.uniqueKeys.length}</span></div>
            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">done today</div>
            <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden">
              <div style="height:100%;width:${monthPct}%;background:#4ade80;border-radius:2px;transition:width .4s"></div>
@@ -3622,17 +3618,17 @@ function renderBuyerOrders(buyerName){
     }
   }
 
-  // Group by supplier
+  // One card per supplier+channel combination
   const bySupplier = {};
   for(const r of todayRows){
-    if(!bySupplier[r.supplier]) bySupplier[r.supplier]={supplier:r.supplier,channels:[],cadence:r.cadence};
-    if(!bySupplier[r.supplier].channels.includes(r.channel)) bySupplier[r.supplier].channels.push(r.channel);
+    const key = r.supplier + '||' + r.channel;
+    if(!bySupplier[key]) bySupplier[key]={supplier:r.supplier,channel:r.channel,channels:[r.channel],cadence:r.cadence};
   }
   const suppliers = Object.values(bySupplier);
 
   const dayName = teamDate.toLocaleDateString('en-IE',{weekday:'long',day:'numeric',month:'long'});
-  const pending = suppliers.filter(s=>!s.channels.every(ch=>teamDoneSet.has(s.supplier+'||'+ch)));
-  const done    = suppliers.filter(s=> s.channels.every(ch=>teamDoneSet.has(s.supplier+'||'+ch)));
+  const pending = suppliers.filter(s=>!teamDoneSet.has(s.supplier+'||'+s.channel));
+  const done    = suppliers.filter(s=> teamDoneSet.has(s.supplier+'||'+s.channel));
 
   let html = `<div class="team-order-header">
     <button class="team-back-btn" onclick="renderTeam()">← Back</button>
@@ -3657,36 +3653,31 @@ function renderBuyerOrders(buyerName){
 }
 
 function buildOrderCard(s, isDone, buyerName){
-  const channelChips = s.channels.map(ch=>
-    `<span class="team-order-chip ${ch.toLowerCase().includes('capel')?'capel':'arklow'}">${esc(ch)}</span>`
-  ).join(' ');
-  const chStr = s.channels.map(c=>`'${esc(c)}'`).join(',');
+  const isCapelCh = s.channel.toLowerCase().includes('capel');
+  const channelChip = `<span class="team-order-chip ${isCapelCh?'capel':'arklow'}">${esc(s.channel)}</span>`;
 
   // Get PO done details from poStatusMap for display
   let doneDetail = '';
   if(isDone){
     const poMap = state.poStatusMap || {};
-    for(const ch of s.channels){
-      const mapKey = s.supplier + '||' + ch.toLowerCase();
-      const po = poMap[mapKey];
-      if(po && po.isDone && po.date){
-        doneDetail = `&nbsp;·&nbsp;${esc(po.date)}${po.person?' · '+esc(po.person):''}`;
-        break;
-      }
+    const mapKey = s.supplier + '||' + s.channel.toLowerCase();
+    const po = poMap[mapKey];
+    if(po && po.isDone && po.date){
+      doneDetail = `&nbsp;·&nbsp;${esc(po.date)}${po.person?' · '+esc(po.person):''}`;
     }
   }
 
-  return `<div class="team-order-card ${isDone?'done':''}">
+  return `<div class="team-order-card ${isDone?'done':''}" style="border-left:4px solid ${isCapelCh?'#7c3aed':'#1e40af'}">
     <div class="team-order-info">
       <div class="team-order-supplier">${esc(s.supplier)}</div>
-      <div class="team-order-meta">${channelChips}&nbsp;·&nbsp;${esc(s.cadence)}${doneDetail?'<span style="color:#15803d;font-weight:600">'+doneDetail+'</span>':''}</div>
+      <div class="team-order-meta">${channelChip}&nbsp;·&nbsp;${esc(s.cadence)}${doneDetail?'<span style="color:#15803d;font-weight:600">'+doneDetail+'</span>':''}</div>
     </div>
     <button class="team-order-done-btn ${isDone?'marked':''}"
-      onclick="event.stopPropagation();toggleTeamDone('${esc(s.supplier)}',[${chStr}],'${esc(buyerName||'')}')">
+      onclick="event.stopPropagation();toggleTeamDone('${esc(s.supplier)}',['${esc(s.channel)}'],'${esc(buyerName||'')}')">
       ${isDone?'✓ Done':'Pending'}
     </button>
     <button class="team-order-go"
-      onclick="event.stopPropagation();goToSupplier('${esc(s.supplier)}')">Open →</button>
+      onclick="event.stopPropagation();goToSupplier('${esc(s.supplier)}','${esc(s.channel)}')">Open →</button>
   </div>`;
 }
 
@@ -3695,6 +3686,9 @@ function toggleTeamDone(supplier, channels, buyerName){
   const action = allDone ? 'pending' : 'done';
   if(allDone) channels.forEach(ch=>teamDoneSet.delete(supplier+'||'+ch));
   else        channels.forEach(ch=>teamDoneSet.add(supplier+'||'+ch));
+  // Re-render team grid to update month progress counts
+  const grid = document.getElementById('teamBuyerGrid');
+  if(grid && grid.style.display !== 'none') renderTeam();
 
   // Write back to PO Status Log if URL is configured
   if(PO_UPDATER_URL){
@@ -3716,7 +3710,25 @@ function toggleTeamDone(supplier, channels, buyerName){
   }
 }
 
-function goToSupplier(supplierName){
+function goToSupplier(supplierName, channel){
+  // Switch channel if specified
+  if(channel){
+    const isCapel = channel.toLowerCase().includes('capel');
+    const newCh = isCapel ? 'capel' : 'arklow';
+    if(state.channel !== newCh){
+      state.channel = newCh;
+      document.getElementById('channelArklow').classList.toggle('active', !isCapel);
+      document.getElementById('channelCapel').classList.toggle('active', isCapel);
+      const note = document.getElementById('channelNote');
+      if(note) note.textContent = isCapel
+        ? 'Stock basis: NetStock_CapelStreet · Demand: Vend shop sales'
+        : 'Stock basis: NetStock_Arklow · Demand: Magento online orders';
+      const poBtn = document.getElementById('poExportBtn');
+      if(poBtn) poBtn.textContent = isCapel ? 'Export PO (Capel Street)' : 'Export PO';
+      if(state.rawRows.length) recompute();
+    }
+  }
+  // Switch to Buying tab
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   const btn   = document.querySelector('[data-tab="buying"]');
