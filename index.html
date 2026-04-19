@@ -283,6 +283,19 @@
     .team-order-go:hover{background:#2d4a6f}
     .team-order-done-btn{padding:6px 12px;background:#f0fdf4;border:1.5px solid #4ade80;color:#15803d;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
     .team-order-done-btn.marked{background:#dcfce7}
+    .team-leaderboard{background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;padding:20px 24px;margin-bottom:24px;color:#fff}
+    .team-lb-title{font-size:13px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+    .team-lb-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .team-lb-rank{font-size:18px;font-weight:900;width:28px;text-align:center;flex-shrink:0}
+    .team-lb-name{font-size:14px;font-weight:700;width:70px;flex-shrink:0}
+    .team-lb-bar-wrap{flex:1;height:10px;background:rgba(255,255,255,.1);border-radius:5px;overflow:hidden}
+    .team-lb-bar-fill{height:100%;border-radius:5px;transition:width .5s ease}
+    .team-lb-count{font-size:22px;font-weight:900;color:#4ade80;width:52px;text-align:right;flex-shrink:0}
+    .team-lb-total{font-size:12px;color:#64748b;width:40px;flex-shrink:0}
+    .team-lb-pct{font-size:12px;font-weight:700;width:36px;text-align:right;flex-shrink:0}
+    .team-buyer-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+    .team-buyer-ring{width:64px;height:64px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;position:relative}
+    .team-buyer-ring svg{position:absolute;top:0;left:0;transform:rotate(-90deg)}
     .team-section-hdr{font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;padding:8px 0 4px;margin-top:8px}
     #noosGrid table{width:100%;border-collapse:collapse;font-size:12px}
     #noosGrid th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:left;font-size:11px;font-weight:700;position:sticky;top:0}
@@ -3531,19 +3544,89 @@ function renderTeam(){
   const colours = ['#1e3a5f','#7c3aed','#0369a1','#15803d','#9a3412','#1e40af'];
   const buyerNames = Object.keys(buyers).sort();
 
-  grid.innerHTML = buyerNames.map((name,i)=>{
+  // Build leaderboard data — count all done suppliers for current month from poStatusMap
+  const poMap = state.poStatusMap || {};
+  const monthNow = new Date().toLocaleDateString('en-IE',{month:'short',year:'numeric'});
+
+  const lbData = buyerNames.map((name,i)=>{
     const b = buyers[name];
-    const cnt = b.today.length;
-    // De-dupe by supplier name for display count
     const uniqueSuppliers = [...new Set(b.today.map(r=>r.supplier))];
-    const done = uniqueSuppliers.filter(sup=>b.today.filter(r=>r.supplier===sup).every(r=>teamDoneSet.has(r.supplier+'||'+r.channel))).length;
-    const hasOrders = cnt > 0;
-    const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    return `<div class="team-buyer-card ${hasOrders?'has-orders':'no-orders'}" onclick="renderBuyerOrders('${esc(name)}')">
-      <div class="team-buyer-avatar" style="background:linear-gradient(135deg,${colours[i%colours.length]},#3b82f6)">${initials}</div>
-      <div class="team-buyer-name">${esc(name)}</div>
-      ${hasOrders
-        ? `<div class="team-buyer-count">${done}/${uniqueSuppliers.length} done today</div>`
+
+    // Seed done from PO map for today's suppliers
+    let doneToday = 0;
+    for(const sup of uniqueSuppliers){
+      const supRows = b.today.filter(r=>r.supplier===sup);
+      const allDone = supRows.every(r=>{
+        const ch = r.channel.toLowerCase().includes('capel')?'capel street':'arklow';
+        const po = poMap[sup+'||'+ch];
+        if(po && po.isDone){ teamDoneSet.add(sup+'||'+r.channel); return true; }
+        return teamDoneSet.has(sup+'||'+r.channel);
+      });
+      if(allDone) doneToday++;
+    }
+
+    // Count all done this month across ALL their suppliers (not just today)
+    const allSuppliers = [...new Set(b.all.map(r=>r.supplier))];
+    let doneMonth = 0;
+    for(const sup of allSuppliers){
+      const supRows = b.all.filter(r=>r.supplier===sup);
+      const anyDone = supRows.some(r=>{
+        const ch = r.channel.toLowerCase().includes('capel')?'capel street':'arklow';
+        const po = poMap[sup+'||'+ch];
+        return po && po.isDone && po.month===monthNow;
+      });
+      if(anyDone) doneMonth++;
+    }
+
+    return {name, colour:colours[i%colours.length], uniqueSuppliers, doneToday,
+            allSuppliers, doneMonth, hasOrders: b.today.length>0};
+  });
+
+  // Sort leaderboard by % done this month descending
+  const lbSorted = [...lbData].sort((a,b)=>{
+    const pa = a.allSuppliers.length ? a.doneMonth/a.allSuppliers.length : 0;
+    const pb = b.allSuppliers.length ? b.doneMonth/b.allSuppliers.length : 0;
+    return pb-pa;
+  });
+
+  const medals = ['🥇','🥈','🥉'];
+  const barColours = ['#4ade80','#86efac','#bbf7d0','#d1fae5','#f0fdf4','#f0fdf4'];
+
+  // Leaderboard HTML
+  const lbHtml = `<div class="team-leaderboard">
+    <div class="team-lb-title">🏆 ${monthNow} — Orders completed</div>
+    ${lbSorted.map((b,i)=>{
+      const pct = b.allSuppliers.length ? Math.round(b.doneMonth/b.allSuppliers.length*100) : 0;
+      return `<div class="team-lb-row">
+        <div class="team-lb-rank">${medals[i]||'#'+(i+1)}</div>
+        <div class="team-lb-name">${esc(b.name)}</div>
+        <div class="team-lb-bar-wrap"><div class="team-lb-bar-fill" style="width:${pct}%;background:${barColours[i]}"></div></div>
+        <div class="team-lb-count">${b.doneMonth}</div>
+        <div class="team-lb-total">/ ${b.allSuppliers.length}</div>
+        <div class="team-lb-pct" style="color:${pct>=80?'#4ade80':pct>=50?'#fbbf24':'#94a3b8'}">${pct}%</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // Buyer cards
+  grid.innerHTML = lbHtml + lbData.map((b,i)=>{
+    const pct = b.uniqueSuppliers.length ? Math.round(b.doneToday/b.uniqueSuppliers.length*100) : 0;
+    const r = 28; const circ = 2*Math.PI*r;
+    const dash = circ * pct/100;
+    const initials = b.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    return `<div class="team-buyer-card ${b.hasOrders?'has-orders':'no-orders'}" onclick="renderBuyerOrders('${esc(b.name)}')">
+      <div class="team-buyer-ring">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="5"/>
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="${b.colour}" stroke-width="5"
+            stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+        </svg>
+        <div class="team-buyer-avatar" style="width:48px;height:48px;font-size:17px;background:linear-gradient(135deg,${b.colour},#3b82f6)">${initials}</div>
+      </div>
+      <div class="team-buyer-name">${esc(b.name)}</div>
+      ${b.hasOrders
+        ? `<div style="font-size:28px;font-weight:900;color:#16a34a;line-height:1">${b.doneToday}</div>
+           <div style="font-size:11px;color:#94a3b8">of ${b.uniqueSuppliers.length} done today</div>`
         : `<div class="team-buyer-none">Nothing due today</div>`
       }
     </div>`;
