@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lenehans Purchasing Dashboard · V5.32 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.33 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -519,7 +519,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.32 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.33 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -738,7 +738,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.32 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.33 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -3081,7 +3081,7 @@ function toggleBasicMode(){
 function applyInitialMode(){
   // Default: basic mode
   const saved = localStorage.getItem('lenehans_mode');
-  const goBasic = saved !== 'full'; // basic unless explicitly set to full
+  const goBasic = saved === 'basic'; // full unless explicitly set to basic
   if(goBasic){
     document.body.classList.add('basic-mode');
     const btn = document.getElementById('basicModeBtn');
@@ -3711,6 +3711,11 @@ function toggleTeamDone(supplier, channels, buyerName){
 }
 
 function goToSupplier(supplierName, channel){
+  // Always open in full mode when navigating from Team tab
+  document.body.classList.remove('basic-mode');
+  localStorage.setItem('lenehans_mode','full');
+  const modeBtn = document.getElementById('basicModeBtn');
+  if(modeBtn) modeBtn.textContent = '⚡ Basic Mode';
   // Switch channel if specified
   if(channel){
     const isCapel = channel.toLowerCase().includes('capel');
