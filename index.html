@@ -526,15 +526,15 @@
 <div class="wrap">
   <!-- Tab navigation -->
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="team">👥 Team</button>
-    <button class="tab-btn" data-tab="buying">📦 Buying</button>
+    <button class="tab-btn active" data-tab="buying">📦 Buying</button>
+    <button class="tab-btn" data-tab="team">👥 Team</button>
     <button class="tab-btn" data-tab="clearstock">🏷️ Clear Stock</button>
     <button class="tab-btn" data-tab="transfers">🔄 Stock Transfers</button>
     <button class="tab-btn" data-tab="noos">⭐ Never Out of Stock</button>
   </div>
 
   <!-- TAB 1: Buying -->
-  <div class="tab-panel" id="tab-buying">
+  <div class="tab-panel active" id="tab-buying">
 
   <!-- Load card: full form (shown before load) / collapsed status bar (after load) -->
   <div id="loadCardFull" class="card">
@@ -829,7 +829,7 @@
     </div>
   </div><!-- /tab-noos -->
 
-  <div class="tab-panel active" id="tab-team">
+  <div class="tab-panel" id="tab-team">
     <div id="teamView" style="padding:16px 0">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <button onclick="shiftTeamDate(-1)" style="width:36px;height:36px;border-radius:50%;border:2px solid #e2e8f0;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1e3a5f">‹</button>
@@ -3478,7 +3478,6 @@ function bindEvents(){
 document.addEventListener('DOMContentLoaded',()=>{
   applyInitialMode();
   updateTeamDateUI();
-  renderTeam();
   bindEvents();
   const monthBadge=document.getElementById('monthBadge');
   if(monthBadge) monthBadge.textContent=`Month: ${monthLabel()}`;
