@@ -3702,16 +3702,61 @@ function buildOrderCard(s, isDone, buyerName){
   </div>`;
 }
 
+// ─── SILENT PO REFRESH ───────────────────────────────────────────────────────
+// Re-fetches PO Status feed in background and updates chips without full reload
+async function silentRefreshPO(){
+  try{
+    const poRaw = await fetchCSV(PO_URL, 'PO Status');
+    state.poStatusMap = parsePOFeed(poRaw);
+    recompute();
+    // If team order list is open, refresh it too
+    const list = document.getElementById('teamOrderList');
+    const hdr  = list && list.style.display!=='none' && list.querySelector('.team-buyer-title');
+    if(hdr){
+      const name = hdr.textContent.replace(/^👤\s*/,'').replace(/'s orders$/,'').trim();
+      renderBuyerOrders(name);
+    }
+    renderTeam();
+  }catch(e){
+    // Silent fail — sheet may be temporarily unavailable
+  }
+}
+
 function toggleTeamDone(supplier, channels, buyerName){
   const allDone = channels.every(ch=>teamDoneSet.has(supplier+'||'+ch));
   const action = allDone ? 'pending' : 'done';
   if(allDone) channels.forEach(ch=>teamDoneSet.delete(supplier+'||'+ch));
   else        channels.forEach(ch=>teamDoneSet.add(supplier+'||'+ch));
-  // Re-render team grid to update month progress counts
+
+  // ── Optimistically update in-memory poStatusMap so supplier list chip updates instantly ──
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now = new Date();
+  const todayStr = String(now.getDate()).padStart(2,'0') + ' ' + MONTHS[now.getMonth()];
+  const monthLabel = MONTHS[now.getMonth()] + ' ' + now.getFullYear();
+  channels.forEach(ch=>{
+    const mapKey = supplier + '||' + ch.toLowerCase();
+    if(action === 'done'){
+      state.poStatusMap[mapKey] = {
+        raw: 'DONE', isDone: true,
+        date: todayStr, person: buyerName||'',
+        month: monthLabel, channel: ch.toLowerCase(),
+        history: state.poStatusMap[mapKey]?.history || []
+      };
+    } else {
+      state.poStatusMap[mapKey] = {
+        raw: 'PENDING', isDone: false,
+        date: '', person: '', month: monthLabel,
+        channel: ch.toLowerCase(), history: []
+      };
+    }
+  });
+
+  // Re-render supplier list chip and team grid immediately
+  recompute();
   const grid = document.getElementById('teamBuyerGrid');
   if(grid && grid.style.display !== 'none') renderTeam();
 
-  // Write back to PO Status Log if URL is configured
+  // Write back to PO Status Log (fire and forget)
   if(PO_UPDATER_URL){
     channels.forEach(ch=>{
       const url = PO_UPDATER_URL
@@ -3719,8 +3764,10 @@ function toggleTeamDone(supplier, channels, buyerName){
         + '&channel='  + encodeURIComponent(ch)
         + '&buyer='    + encodeURIComponent(buyerName||'')
         + '&action='   + action;
-      fetch(url, {mode:'no-cors'}).catch(()=>{}); // fire and forget — no-cors required for Apps Script
+      fetch(url, {mode:'no-cors'}).catch(()=>{});
     });
+    // Re-fetch PO feed after 4 seconds to pick up any sheet changes
+    setTimeout(()=>silentRefreshPO(), 4000);
   }
 
   const list = document.getElementById('teamOrderList');
