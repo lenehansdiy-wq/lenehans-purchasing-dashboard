@@ -3217,6 +3217,15 @@ async function processRawRows(parsedRaw, sourceName){
     : ' · governance feeds unavailable, showing all suppliers';
   setStatus(`✅ Loaded ${fmtInt(normalised.length)} rows from ${sourceName}${govNote}.${missing.length?' Missing columns: '+missing.join(', '):''}`, false);
   setLoadMeta('',false);
+  // Refresh Team tab with latest PO status data
+  renderTeam();
+  // If buyer order list is open, re-render it too
+  const teamList = document.getElementById('teamOrderList');
+  const teamHdr  = teamList && teamList.style.display!=='none' && teamList.querySelector('.team-buyer-title');
+  if(teamHdr){
+    const name = teamHdr.textContent.replace(/^👤\s*/,'').replace(/'s orders$/,'').trim();
+    renderBuyerOrders(name);
+  }
 }
 
 async function testUrl(){
