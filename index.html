@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lenehans Purchasing Dashboard · V5.33 · INTELLIGENCE</title>
+  <title>Lenehans Purchasing Dashboard · V5.34 · INTELLIGENCE</title>
   <style>
     /* ── Design tokens ───────────────────────────────────────────────── */
     :root{
@@ -519,7 +519,7 @@
 </head>
 <body>
 <header>
-  <div class="title">Lenehans Purchasing Dashboard · V5.33 · INTELLIGENCE</div>
+  <div class="title">Lenehans Purchasing Dashboard · V5.34 · INTELLIGENCE</div>
   <div class="sub">QueryData_master + CS Shared + PO Status · governance · seasonal look-ahead · momentum · order health · confidence score</div>
 </header>
 
@@ -738,7 +738,7 @@
     </div>
   </div>
 
-  <div class="footer">V5.33 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
+  <div class="footer">V5.34 · Supplier governance · Seasonal look-ahead (next 3 months) · Demand momentum (7D vs 30D) · Buyer confidence score · Supplier order health · CS-required lines locked · stock basis = NetStock_Arklow</div>
   </div><!-- /tab-buying -->
 
   <!-- TAB 2: Clear Stock -->
@@ -2824,9 +2824,22 @@ function render(){
               histHtml += '</div>';
             }
           }
-          return `<div><span class="chip ${chipCls}">${esc(po.raw)}${personPart}${datePart}</span>${histHtml}</div>`;
+          // Mark done button — only show if not already done this month
+          const markDoneBtn = !doneThisMonth && PO_UPDATER_URL
+            ? `<button onclick="event.stopPropagation();markSupplierDone('${esc(s.SupplierName)}')"
+                style="margin-top:4px;padding:2px 8px;font-size:10px;font-weight:700;background:#f0fdf4;border:1.5px solid #4ade80;color:#15803d;border-radius:5px;cursor:pointer;display:block">
+                ✓ Mark done
+              </button>`
+            : '';
+          return `<div><span class="chip ${chipCls}">${esc(po.raw)}${personPart}${datePart}</span>${histHtml}${markDoneBtn}</div>`;
         })()
-        :`<span class="chip po-pending">No PO</span>`;
+        : PO_UPDATER_URL
+          ? `<div><span class="chip po-pending">No PO</span>
+              <button onclick="event.stopPropagation();markSupplierDone('${esc(s.SupplierName)}')"
+                style="margin-top:4px;padding:2px 8px;font-size:10px;font-weight:700;background:#f0fdf4;border:1.5px solid #4ade80;color:#15803d;border-radius:5px;cursor:pointer;display:block">
+                ✓ Mark done
+              </button></div>`
+          : `<span class="chip po-pending">No PO</span>`;
       const health = s.orderHealth || {score:0,label:'—',cls:'conf-low'};
       const conf   = s.avgConfidence || {score:60,label:'Med',cls:'conf-med'};
       const healthBar = `<div class="health-bar"><div class="health-track"><div class="health-fill ${health.cls}" style="width:${health.score}%"></div></div>${health.label}</div>`;
@@ -3698,7 +3711,7 @@ function toggleTeamDone(supplier, channels, buyerName){
         + '&channel='  + encodeURIComponent(ch)
         + '&buyer='    + encodeURIComponent(buyerName||'')
         + '&action='   + action;
-      fetch(url).catch(()=>{}); // fire and forget
+      fetch(url, {mode:'no-cors'}).catch(()=>{}); // fire and forget — no-cors required for Apps Script
     });
   }
 
@@ -3708,6 +3721,33 @@ function toggleTeamDone(supplier, channels, buyerName){
     const name = hdr.textContent.replace(/^👤\s*/,'').replace(/'s orders$/,'').trim();
     renderBuyerOrders(name);
   }
+}
+
+function markSupplierDone(supplierName){
+  if(!PO_UPDATER_URL) return;
+  const ch = state.channel === 'capel' ? 'Capel Street' : 'Arklow';
+  // Get buyer name from BUYER_SCHEDULE if possible
+  const schedEntry = BUYER_SCHEDULE.find(r=>r.supplier===supplierName && r.channel===ch);
+  const buyer = schedEntry ? schedEntry.buyer : '';
+  const url = PO_UPDATER_URL
+    + '?supplier=' + encodeURIComponent(supplierName)
+    + '&channel='  + encodeURIComponent(ch)
+    + '&buyer='    + encodeURIComponent(buyer)
+    + '&action=done';
+  fetch(url)
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.ok){
+        // Reload PO feed and re-render
+        fetchCSV(PO_URL,'PO Status').then(poRaw=>{
+          state.poStatusMap = parsePOFeed(poRaw);
+          recompute();
+        }).catch(()=>{});
+      } else {
+        alert('Could not update PO status: ' + (data.error||'Unknown error'));
+      }
+    })
+    .catch(()=>alert('Could not reach PO updater. Check your connection.'));
 }
 
 function goToSupplier(supplierName, channel){
